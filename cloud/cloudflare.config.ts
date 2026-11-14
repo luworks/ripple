@@ -4,7 +4,7 @@ const web = defineContainer({
 	name: "brain0-web",
 	image: { dockerfile: "../web/Dockerfile.cloud", buildContext: ".." },
 	instanceType: "basic",
-	maxInstances: 1,
+	maxInstances: 4,
 });
 const agent = defineContainer({
 	name: "brain0-agent",

@@ -13,17 +13,6 @@ export class WebContainer extends Container {
 		RESEARCH_DAILY_LIMIT: "10",
 		RESEARCH_MAX_CONCURRENT: "3",
 	};
-
-	// A deploy restarts this Durable Object but not its running container, so a
-	// container started by an older deploy would keep serving the old image.
-	constructor(ctx, env) {
-		super(ctx, env);
-		ctx.blockConcurrencyWhile(async () => {
-			const version = env.VERSION.id;
-			if (ctx.container.running && (await ctx.storage.get("deployVersion")) !== version) await ctx.container.destroy();
-			await ctx.storage.put("deployVersion", version);
-		});
-	}
 }
 
 export class AgentContainer extends Container {
@@ -55,9 +44,11 @@ export default {
 			const origin = request.headers.get("origin");
 			if (origin && origin !== url.origin) return new Response("Forbidden", { status: 403 });
 		}
+		// One web container per deploy: a running container keeps its image, so each
+		// deploy starts a fresh one and the previous one sleeps once traffic stops.
 		const headers = new Headers(request.headers);
 		headers.delete("authorization");
-		const response = await getContainer(bindings.WEB, "site").fetch(new Request(request, { headers }));
+		const response = await getContainer(bindings.WEB, `site-${bindings.VERSION.id}`).fetch(new Request(request, { headers }));
 		const responseHeaders = new Headers(response.headers);
 		responseHeaders.set("Cache-Control", "private, no-store");
 		return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
