@@ -74,6 +74,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
         run: node rollout-web.mjs
+      - name: Show container state
+        if: always()
+        working-directory: cloud
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
+        run: node container-state.mjs
       - name: Verify production serves this commit
         run: |
           for i in $(seq 1 36); do
@@ -82,3 +89,10 @@ jobs:
             sleep 5
           done
           echo "Production serves '${live}', expected $GITHUB_SHA"; exit 1
+      - name: Show container state after verify
+        if: failure()
+        working-directory: cloud
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
+        run: node container-state.mjs
