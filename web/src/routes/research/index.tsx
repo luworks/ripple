@@ -18,7 +18,7 @@ import {
 } from "#/components/research-numbers";
 import {
 	getPrices,
-	listResearchRuns,
+	listShowcaseRuns,
 	startResearchRun,
 } from "#/server/research";
 import type { RunSummary } from "#/server/research-db";
@@ -27,7 +27,7 @@ import type { PriceSeries, ResearchResult } from "#/server/research-types";
 export const Route = createFileRoute("/research/")({
 	head: () => ({ meta: [{ title: "Event research · Ripple" }] }),
 	loader: async () => {
-		const runs = (await listResearchRuns()).filter((r) => !HIDDEN.has(r.id));
+		const runs = await listShowcaseRuns({ data: { ids: SHOWCASE } });
 		const featured = pickFeatured(runs);
 		const fetchFor = (r: ResearchResult, symbols: string[]) =>
 			getPrices({ data: windowRequest(r, symbols) }).catch(
@@ -66,24 +66,20 @@ const examples = [
 ];
 
 const FEATURED = /jensen|黄仁勋/i;
-// Runs kept out of the showcase: the November FOMC run found no meeting (an empty result);
-// runs from before the Telem-first agent (#32), which leaned on Tavily and carry no Telem
-// trace; and newer runs superseded by a better run of the same event.
-const HIDDEN = new Set([
-	"b9d93a31-aae4-4112-9af7-a455e13e6957", // FOMC, empty result
-	// Pre-#32 agent
-	"6855abe7-8c7e-4cff-b81e-f3785f1bf487",
-	"f4f9287b-605c-4c77-8fca-c518c350ee28",
-	"c758b4e7-596c-4fe1-9184-38e4c1ce9be3",
-	"5843dbed-dc5e-4c1e-93c2-e89613add5d2",
-	"4f5c3a7d-fc26-44e0-962d-af310961c7ce",
-	"b1a1a467-7386-4df0-adcf-777f28104edf",
-	"89674da7-7f99-4165-a0a9-9d18d0bc5aa4",
-	"dfe7befe-d79f-406d-9729-ebf021ae94f1",
-	// Superseded: Jensen side story (keeps the featured slot on the main run), AMD without a social post
-	"85157d91-c099-4dda-98a9-916828944479",
-	"9e474a5e-75c8-4f3c-836b-99ff2361a52d",
-]);
+// Finished runs shown here: an allowlist, because test and batch runs keep arriving. Each one
+// ran on the Telem-first agent (#32), searched only with Telem (no Tavily), cites at least one
+// social post, finished within ~90 s, and has a Telem trace. The Jensen run is featured.
+const SHOWCASE = [
+	"ee623f94-7d7f-49ef-b3f2-675c8915f8ad", // Jensen Huang resigns — NVDA and AI chips
+	"1d0b4e81-9313-4255-80d3-5cb5d2f510c7", // 台积电 11 月营收
+	"ed1d1e82-e525-4616-b8d4-9bf8d714ad42", // AMD MI450 OpenAI deal
+	"02897ba9-6649-46ed-adb6-c8b02ee34541", // Apple iPhone 18 demand warning
+	"396be6e7-907e-4b8c-bd10-65f38f215802", // 苹果 CEO 库克卸任
+	"17c60ef2-6130-4663-a779-e31af9f71aa0", // Apple Q4 FY2026 earnings
+	"8d456a8d-25f8-4d5a-b34d-4af2df4ef89e", // Tesla robotaxi expansion
+	"f646a134-3762-4021-98ac-087b1cfe28e1", // 小米汽车交付量
+	"9bcc6b90-1e66-487c-95d9-7a94150ddfeb", // 腾讯 2026 Q3 财报
+];
 
 // Date-only items carry T00:00:00Z; they can't be placed on an intraday chart.
 const precise = (t: { time: string }) => !isDateOnly(t.time);

@@ -15,12 +15,19 @@ export const getResearchRun = createServerFn({ method: "GET" })
 		return getRun(data.id);
 	});
 
-export const listResearchRuns = createServerFn({ method: "GET" }).handler(
-	async () => {
+// The curated showcase runs plus whatever is running right now.
+export const listShowcaseRuns = createServerFn({ method: "GET" })
+	.validator((d: { ids: string[] }) => ({
+		ids: d.ids.slice(0, 50).map(String),
+	}))
+	.handler(async ({ data }) => {
 		const { listRecentRuns } = await import("./research-db");
-		return listRecentRuns(20);
-	},
-);
+		const [picked, recent] = await Promise.all([
+			listRecentRuns(data.ids.length, data.ids),
+			listRecentRuns(20),
+		]);
+		return [...recent.filter((r) => r.status === "running"), ...picked];
+	});
 
 export const getPrices = createServerFn({ method: "GET" })
 	.validator(

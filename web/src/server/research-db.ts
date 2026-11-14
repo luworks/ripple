@@ -129,15 +129,24 @@ export async function getRun(id: string): Promise<RunRow | null> {
 	return row ? toRow(row) : null;
 }
 
-export async function listRecentRuns(limit = 20): Promise<RunSummary[]> {
+// Recent real runs, or (with ids) exactly those runs, newest first.
+export async function listRecentRuns(
+	limit = 20,
+	ids?: string[],
+): Promise<RunSummary[]> {
 	await ensureSchema();
+	const sql = db();
 	const rows =
-		await db()`select id, query, status, error, duration_ms, created_at, finished_at,
+		await sql`select id, query, status, error, duration_ms, created_at, finished_at,
 		result->'event'->>'title' as title, case when status = 'done' then result end as result
 		from research_runs
-		-- Real runs only: the Docker runner always emits this event; stub/test rows never do.
-		where status = 'running'
-			or events @> '[{"text": "Starting agent container"}]'::jsonb
+		where ${
+			ids
+				? sql`id = any(${ids})`
+				: // Real runs only: the Docker runner always emits this event; stub/test rows never do.
+					sql`(status = 'running'
+			or events @> '[{"text": "Starting agent container"}]'::jsonb)`
+		}
 		order by created_at desc limit ${limit}`;
 	return rows.map((r) => {
 		const { events: _e, ...rest } = toRow(r);
