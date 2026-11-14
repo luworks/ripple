@@ -66,8 +66,24 @@ const examples = [
 ];
 
 const FEATURED = /jensen|黄仁勋/i;
-// Runs kept out of the showcase: the November FOMC run found no meeting (an empty result).
-const HIDDEN = new Set(["b9d93a31-aae4-4112-9af7-a455e13e6957"]);
+// Runs kept out of the showcase: the November FOMC run found no meeting (an empty result);
+// runs from before the Telem-first agent (#32), which leaned on Tavily and carry no Telem
+// trace; and newer runs superseded by a better run of the same event.
+const HIDDEN = new Set([
+	"b9d93a31-aae4-4112-9af7-a455e13e6957", // FOMC, empty result
+	// Pre-#32 agent
+	"6855abe7-8c7e-4cff-b81e-f3785f1bf487",
+	"f4f9287b-605c-4c77-8fca-c518c350ee28",
+	"c758b4e7-596c-4fe1-9184-38e4c1ce9be3",
+	"5843dbed-dc5e-4c1e-93c2-e89613add5d2",
+	"4f5c3a7d-fc26-44e0-962d-af310961c7ce",
+	"b1a1a467-7386-4df0-adcf-777f28104edf",
+	"89674da7-7f99-4165-a0a9-9d18d0bc5aa4",
+	"dfe7befe-d79f-406d-9729-ebf021ae94f1",
+	// Superseded: Jensen side story (keeps the featured slot on the main run), AMD without a social post
+	"85157d91-c099-4dda-98a9-916828944479",
+	"9e474a5e-75c8-4f3c-836b-99ff2361a52d",
+]);
 
 // Date-only items carry T00:00:00Z; they can't be placed on an intraday chart.
 const precise = (t: { time: string }) => !isDateOnly(t.time);

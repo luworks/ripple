@@ -46,10 +46,11 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
    Each needs a concrete one-line rationale, not "same industry". Broad benchmarks (SPY, QQQ)
    go only in `market.benchmarks`, not in `tickers`.
 4. **Timeline.** 6–15 dated items: first report, official statements/filings (8-K, exchange
-   notices), major follow-ups, analyst reactions, notable social posts (X, Reddit, Weibo,
-   etc.; at least 1–2 when Telem found any, `kind: "social"`), and scheduled upcoming dates. Each item
-   carries its publish time in ISO 8601 UTC and a real URL you actually saw. Prefer the
-   original source over aggregators. Never invent URLs or times; if only the date is known,
+   notices), major follow-ups, analyst reactions, notable social posts
+   (`kind: "social"`; if any Telem result is an X, Reddit, Weibo, Zhihu, Xiaohongshu or similar
+   post about the event, include the 1–2 most relevant ones, even a discussion thread), and
+   scheduled upcoming dates. Each item carries its publish time in ISO 8601 UTC and a real URL
+   you actually saw. Prefer the original source over aggregators. Never invent URLs or times; if only the date is known,
    use T00:00:00Z and say "date only" in detail. Don't round to the hour or copy one time onto
    several items; use the publish timestamp shown by the search result or page.
 5. **Market reaction.** Choose a window from ~1 trading day before the first report to now
