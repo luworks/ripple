@@ -40,6 +40,8 @@ function ensureSchema() {
 		)`;
 		await sql`create index if not exists research_runs_nq_created_idx
 			on research_runs (normalized_query, created_at desc)`;
+		await sql`create index if not exists research_runs_created_idx
+			on research_runs (created_at desc)`;
 	})().catch((err) => {
 		ready = undefined;
 		throw err;
@@ -76,10 +78,25 @@ export async function findCachedRun(normalized: string, withinMs: number) {
 	return (row?.id as string | undefined) ?? null;
 }
 
-export async function insertRun(id: string, query: string) {
+// Serialize reservations in the database so simultaneous requests cannot exceed
+// the rolling 24-hour limit, including after a server restart.
+export async function insertRun(
+	id: string,
+	query: string,
+	dailyLimit?: number,
+) {
 	await ensureSchema();
-	await db()`insert into research_runs (id, query, normalized_query, status)
-		values (${id}, ${query}, ${normalizeQuery(query)}, 'running')`;
+	return db().begin(async (tx) => {
+		if (dailyLimit !== undefined) {
+			await tx`select pg_advisory_xact_lock(hashtext('brain0.research.daily'))`;
+			const [row] = await tx`select count(*)::int as n from research_runs
+				where created_at > now() - interval '24 hours'`;
+			if (row.n >= dailyLimit) return false;
+		}
+		await tx`insert into research_runs (id, query, normalized_query, status)
+			values (${id}, ${query}, ${normalizeQuery(query)}, 'running')`;
+		return true;
+	});
 }
 
 export async function appendEvent(id: string, e: AgentEvent) {

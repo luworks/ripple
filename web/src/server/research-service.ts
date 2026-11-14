@@ -62,7 +62,23 @@ export async function startResearch(raw: string): Promise<StartResult> {
 	const run: Live = { listeners: new Set() };
 	live.set(id, run);
 	try {
-		await insertRun(id, query);
+		const configuredLimit = process.env.RESEARCH_DAILY_LIMIT;
+		const dailyLimit =
+			configuredLimit === undefined ? undefined : Number(configuredLimit);
+		if (
+			dailyLimit !== undefined &&
+			(!Number.isSafeInteger(dailyLimit) || dailyLimit < 0)
+		) {
+			throw new Error("Invalid RESEARCH_DAILY_LIMIT configuration");
+		}
+		if (!(await insertRun(id, query, dailyLimit))) {
+			live.delete(id);
+			return {
+				ok: false,
+				error: "Research limit reached. Please try again later.",
+				status: 429,
+			};
+		}
 	} catch (err) {
 		live.delete(id);
 		throw err;
