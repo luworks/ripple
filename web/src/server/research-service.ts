@@ -12,7 +12,8 @@ import {
 import type { AgentEvent, ResearchResult } from "./research-types";
 
 export const MAX_QUERY_LEN = 300;
-const MAX_CONCURRENT = 3;
+// Each agent container idles ~150 MB waiting on the network; 8 lets several demo viewers run at once.
+const MAX_CONCURRENT = 8;
 const CACHE_MS = 10 * 60 * 1000;
 
 export type LiveMessage =
