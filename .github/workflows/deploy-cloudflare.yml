@@ -68,12 +68,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
           CF_ATTACH_DOMAIN: '1'
         run: pnpm exec cf deploy --secrets-file "$RUNNER_TEMP/brain0-secrets.json"
-      - name: Roll out the current web image
-        working-directory: cloud
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
-        run: node rollout-web.mjs
       - name: Show container state
         if: always()
         working-directory: cloud
@@ -83,7 +77,7 @@ jobs:
         run: node container-state.mjs
       - name: Verify production serves this commit
         run: |
-          for i in $(seq 1 36); do
+          for i in $(seq 1 120); do
             live=$(curl -fsS "https://search.chaorders.com/version.txt?t=$(date +%s)" || true)
             [ "$live" = "$GITHUB_SHA" ] && { echo "Production serves $GITHUB_SHA"; exit 0; }
             sleep 5
