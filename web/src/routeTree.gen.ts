@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentMemoryRouteImport } from './routes/agent-memory'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
 import { Route as ResearchIndexRouteImport } from './routes/research/index'
 import { Route as ResearchIdRouteImport } from './routes/research/$id'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const AgentMemoryRoute = AgentMemoryRouteImport.update({
   id: '/agent-memory',
   path: '/agent-memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsJensenHuangRoute = EventsJensenHuangRouteImport.update({
@@ -86,6 +92,7 @@ const ApiResearchIdEventsRoute = ApiResearchIdEventsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
+  '/pricing': typeof PricingRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
+  '/pricing': typeof PricingRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
+  '/pricing': typeof PricingRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agent-memory'
+    | '/pricing'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agent-memory'
+    | '/pricing'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agent-memory'
+    | '/pricing'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentMemoryRoute: typeof AgentMemoryRoute
+  PricingRoute: typeof PricingRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
   ResearchIdRoute: typeof ResearchIdRoute
   StockNvdaRoute: typeof StockNvdaRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/agent-memory'
       fullPath: '/agent-memory'
       preLoaderRoute: typeof AgentMemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/jensen-huang': {
@@ -278,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentMemoryRoute: AgentMemoryRoute,
+  PricingRoute: PricingRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
   ResearchIdRoute: ResearchIdRoute,
   StockNvdaRoute: StockNvdaRoute,

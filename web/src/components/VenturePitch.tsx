@@ -1,7 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { BRAND } from "#/brand";
 import {
-	COMPARE,
 	PRICE_MO,
+	REASONS,
 	RUN_COST,
 	RUN_SECONDS,
 	RUNS_INCLUDED,
@@ -10,10 +11,10 @@ import {
 } from "#/data/venture-pitch";
 
 /* The investor screen on the home page, hung like the /telem gallery but in
-   ink wash: one painting, one sentence, a price list against the incumbents,
-   then market size and why now. Numbers and sources live in venture-pitch.ts. */
+   ink wash: one painting, one sentence, why us, then market size and why now.
+   The full comparison lives on /pricing. Numbers live in venture-pitch.ts. */
 
-const vars = {
+export const inkVars = {
 	"--paper": "#f3ede1",
 	"--ink": "#1c1a17",
 	"--muted": "#6b645a",
@@ -21,83 +22,100 @@ const vars = {
 	"--seal": "#b0362a",
 } as React.CSSProperties;
 
-const KICKER =
+export const KICKER =
 	"font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[11px]";
+
+export function Painting() {
+	return (
+		<figure className="flex flex-col gap-2">
+			<img
+				src="/art/pitch/river.webp"
+				alt="Ink wash painting: three heavy junks drift on a misty river while one small boat ahead leaves ripples across the water."
+				className="w-full rounded-sm"
+				loading="lazy"
+				width={1200}
+				height={800}
+			/>
+			<figcaption className="text-xs italic text-[var(--muted)]">
+				Three heavy junks, one light boat. Its ripples cross the whole river.
+			</figcaption>
+		</figure>
+	);
+}
+
+export function Sources() {
+	return (
+		<p className="text-[11px] leading-relaxed text-[var(--muted)]">
+			Sources:{" "}
+			{SOURCES.map((s, i) => (
+				<span key={s.href}>
+					{i > 0 && " · "}
+					<a
+						href={s.href}
+						target="_blank"
+						rel="noreferrer"
+						className="underline decoration-[var(--rule)] underline-offset-2 hover:text-[var(--ink)]"
+					>
+						{s.label}
+					</a>
+				</span>
+			))}
+			. "—" means the capability is not advertised on their public pages;
+			"Quote" means no published price. Painting generated for this page.
+		</p>
+	);
+}
 
 export function VenturePitch() {
 	const margin = Math.round((1 - (RUNS_INCLUDED * RUN_COST) / PRICE_MO) * 100);
 	return (
 		<section
 			id="pitch"
-			style={vars}
+			style={inkVars}
 			className="-mx-4 scroll-mt-20 bg-[var(--paper)] px-5 py-12 text-[var(--ink)] sm:mx-0 sm:rounded-2xl sm:px-10 sm:py-16"
 		>
 			<div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
 				<div className="flex flex-col gap-5">
-					<span className={KICKER}>The business · 生意</span>
+					<span className={KICKER}>Why {BRAND}</span>
 					<h2 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
 						Terminal-grade answers at{" "}
 						<em className="text-[var(--seal)]">1/27</em> the price.
 					</h2>
 					<p className="max-w-xl leading-relaxed text-[var(--muted)]">
-						Event-driven desks pay for the first minutes after a headline.{" "}
-						{BRAND} tells them whether it is real, who said it first and what it
-						hits, with Chinese social posts on the same clock as the price. We
-						sell it as the second screen next to the Terminal, not a
-						replacement.
+						Event-driven desks pay for the first minutes after a headline. A
+						Terminal gives them the wire. {BRAND} gives them the answer: is it
+						real, who said it first, what does it hit.
 					</p>
 					<dl className="grid grid-cols-3 gap-4 border-t border-[var(--rule)] pt-5">
 						<Fact v={`$${PRICE_MO}`} l="per seat / month" />
-						<Fact v={`$${RUN_COST.toFixed(2)}`} l="measured cost / run" />
+						<Fact v={`${RUN_SECONDS} s`} l="headline to brief" />
 						<Fact v={`${margin}%`} l={`margin at ${RUNS_INCLUDED} runs`} />
 					</dl>
 				</div>
-				<figure className="flex flex-col gap-2">
-					<img
-						src="/art/pitch/river.webp"
-						alt="Chinese ink wash painting: three heavy junks drift on a misty river while one small boat ahead leaves ripples across the water."
-						className="w-full rounded-sm shadow-[0_1px_0_var(--rule)]"
-						loading="lazy"
-						width={1200}
-						height={800}
-					/>
-					<figcaption className="text-xs italic text-[var(--muted)]">
-						Three heavy junks, one light boat. Its ripples cross the whole
-						river.
-					</figcaption>
-				</figure>
+				<Painting />
 			</div>
 
-			<div className="mt-14 flex flex-col gap-4">
-				<span className={KICKER}>How it compares · 比较</span>
-				<ul className="flex flex-col">
-					{COMPARE.map((c) => (
-						<li
-							key={c.name}
-							className={`grid grid-cols-1 gap-1 border-b border-[var(--rule)] py-4 sm:grid-cols-[12rem_11rem_1fr] sm:gap-6 ${c.us ? "text-[var(--ink)]" : ""}`}
-						>
-							<span className="flex items-center gap-2 font-serif text-lg">
-								{c.us && (
-									<span className="inline-block h-2 w-2 rounded-full bg-[var(--seal)]" />
-								)}
-								{c.name}
-							</span>
-							<span
-								className={`font-mono text-sm sm:pt-1 ${c.us ? "font-semibold text-[var(--seal)]" : c.price === "not public" ? "italic text-[var(--muted)]" : ""}`}
-							>
-								{c.price}
-							</span>
-							<span className="text-sm leading-relaxed text-[var(--muted)] sm:pt-0.5">
-								{c.line}
-							</span>
-						</li>
-					))}
-				</ul>
-			</div>
+			<ol className="mt-14 grid grid-cols-1 gap-8 border-t border-[var(--rule)] pt-10 md:grid-cols-3">
+				{REASONS.map((r, i) => (
+					<li key={r.t} className="flex flex-col gap-2">
+						<span className="font-mono text-xs text-[var(--seal)]">
+							{String(i + 1).padStart(2, "0")}
+						</span>
+						<span className="font-serif text-xl">{r.t}</span>
+						<p className="text-sm leading-relaxed text-[var(--muted)]">{r.b}</p>
+					</li>
+				))}
+			</ol>
+			<Link
+				to="/pricing"
+				className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm text-[var(--paper)] hover:bg-[var(--seal)]"
+			>
+				Pricing and the full comparison →
+			</Link>
 
 			<div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-2">
 				<div className="flex flex-col gap-4">
-					<span className={KICKER}>How big · 规模, bottom-up</span>
+					<span className={KICKER}>How big, bottom-up</span>
 					<ol className="flex flex-col">
 						{SIZING.map((s) => (
 							<li
@@ -116,7 +134,7 @@ export function VenturePitch() {
 					</ol>
 				</div>
 				<div className="flex flex-col gap-4">
-					<span className={KICKER}>Why now · 时机</span>
+					<span className={KICKER}>Why now</span>
 					<ul className="flex flex-col gap-4 text-sm leading-relaxed text-[var(--muted)]">
 						<li>
 							<b className="font-medium text-[var(--ink)]">
@@ -144,24 +162,9 @@ export function VenturePitch() {
 				</div>
 			</div>
 
-			<p className="mt-12 text-[11px] leading-relaxed text-[var(--muted)]">
-				Sources:{" "}
-				{SOURCES.map((s, i) => (
-					<span key={s.href}>
-						{i > 0 && " · "}
-						<a
-							href={s.href}
-							target="_blank"
-							rel="noreferrer"
-							className="underline decoration-[var(--rule)] underline-offset-2 hover:text-[var(--ink)]"
-						>
-							{s.label}
-						</a>
-					</span>
-				))}
-				. Competitor lines describe their public pages; "not public" means no
-				published price. Painting generated for this page.
-			</p>
+			<div className="mt-12">
+				<Sources />
+			</div>
 		</section>
 	);
 }

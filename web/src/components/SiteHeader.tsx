@@ -62,6 +62,14 @@ export function SiteHeader() {
 							className="h-9 w-9 rounded-full object-cover ring-2 ring-zinc-950"
 						/>
 					</div>
+					<Link
+						to="/pricing"
+						onClick={() => setOpen(false)}
+						className={`${linkBase} px-3 py-1.5 text-sm`}
+						activeProps={linkActive}
+					>
+						Pricing
+					</Link>
 					<button
 						type="button"
 						aria-label={open ? "Close menu" : "Open menu"}

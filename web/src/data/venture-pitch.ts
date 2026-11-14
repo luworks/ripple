@@ -11,38 +11,79 @@ export const RUNS_INCLUDED = 300;
 export const RUN_COST = 0.11;
 export const RUN_SECONDS = 84;
 
-export const COMPARE: {
-	name: string;
-	price: string;
-	line: string;
-	us?: boolean;
-}[] = [
+// "yes" = documented capability; "—" = not advertised on their public pages.
+export const PRODUCTS = [
+	"Ripple",
+	"Bloomberg Terminal",
+	"Dataminr",
+	"AlphaSense",
+	"Benzinga Pro",
+];
+
+export const MATRIX: { label: string; cells: string[] }[] = [
 	{
-		name: "Ripple",
-		price: `$${PRICE_MO} / seat / mo`,
-		line: `Headline to people, tickers, social posts and minute prices, each line sourced. ${RUNS_INCLUDED} fresh runs included; cached runs free.`,
-		us: true,
+		label: "Price per seat",
+		cells: [
+			`$${PRICE_MO} / mo`,
+			"$2,665 / mo",
+			"Quote",
+			"Quote",
+			"$37 – $197 / mo",
+		],
 	},
 	{
-		name: "Bloomberg Terminal",
-		price: "$2,665 / seat / mo",
-		line: "Data, news, analytics and trading. $31,980 a year for one seat. Social signal advertised for X/Twitter only.",
+		label: "Sign up and cancel monthly",
+		cells: ["yes", "2-year contract", "Quote", "Quote", "yes"],
 	},
 	{
-		name: "AlphaSense",
-		price: "not public",
-		line: "AI search over filings, transcripts and expert calls. Median contract $18,750 a year (Vendr).",
+		label: "Type a headline, get a sourced brief in about a minute",
+		cells: [`${RUN_SECONDS} s, measured`, "—", "—", "—", "—"],
 	},
 	{
-		name: "Dataminr",
-		price: "not public",
-		line: "Real-time event alerts from public data, sold to security teams, governments and newsrooms.",
+		label: "Chinese social: Xiaohongshu, Douyin, Weibo, Zhihu",
+		cells: ["yes", "X/Twitter only", "—", "—", "—"],
 	},
 	{
-		name: "Benzinga Pro",
-		price: "$37 – $197 / mo",
-		line: "Real-time news feed and audio squawk for traders. Chinese social not advertised.",
+		label: "Social posts on the same minute clock as the price",
+		cells: ["yes", "—", "—", "—", "—"],
 	},
+	{
+		label: "Every line linked to a source URL and UTC time",
+		cells: ["yes", "—", "—", "Document citations", "—"],
+	},
+	{
+		label: "Every capability in every seat, no tiers",
+		cells: ["yes", "—", "—", "—", "3 tiers"],
+	},
+	{
+		label: "The same API our own app uses, included",
+		cells: ["yes", "—", "—", "—", "—"],
+	},
+];
+
+// Why a desk picks us, one line each, as a direct contrast.
+export const REASONS = [
+	{
+		t: "Answers, not feeds.",
+		b: `Terminals and news feeds hand you headlines to read. Ripple reads them for you: people, tickers, timeline and posts in about ${RUN_SECONDS} seconds.`,
+	},
+	{
+		t: "The signal they don't carry.",
+		b: "Xiaohongshu, Douyin, Weibo and Zhihu posts, placed on the same minute clock as the price. The incumbents advertise X/Twitter at most.",
+	},
+	{
+		t: "Nothing held back.",
+		b: "Every seat gets the full agent, every source and the same HTTP API our own app uses, so a team can wire it into its own agents and dashboards.",
+	},
+];
+
+export const INCLUDED = [
+	"The research agent, unlimited cached briefs",
+	`${RUNS_INCLUDED} fresh runs a month, then $0.25 a run`,
+	"37 platforms through Telem, 8 of them Chinese",
+	"Minute-level prices for every exposed ticker",
+	"A source URL and UTC time on every line",
+	"HTTP API: POST /api/research, live events over SSE",
 ];
 
 const SEATS = 325_000;
