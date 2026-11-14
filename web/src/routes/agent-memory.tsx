@@ -30,7 +30,7 @@ function AgentMemory() {
 				<section className="flex flex-col gap-4">
 					<Kicker>Agent Memory</Kicker>
 					<h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-						Every search my agents ran.{" "}
+						Every search our agents ran.{" "}
 						<span className="text-sky-400">One memory.</span>
 					</h1>
 					<p className="flex flex-wrap gap-x-5 gap-y-1 text-zinc-400">
@@ -38,8 +38,8 @@ function AgentMemory() {
 						<Stat value={fmt.format(strata.pages)} label="pages opened" />
 						<Stat value={String(strata.machines)} label="machines" />
 						<Stat
-							value={fmt.format(strata.saved)}
-							label={`web calls saved by memory in ${strata.memoryRuns} runs`}
+							value={fmt.format(strata.memoryRuns)}
+							label="runs started from memory"
 							accent
 						/>
 					</p>

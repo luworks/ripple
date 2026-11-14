@@ -119,17 +119,13 @@ function MemoryTag() {
 	);
 }
 
+// Memory is a head start, not a reason to search less: show speed, never call counts.
 const savedLine = (m: MemoryHit) =>
-	[
-		m.typicalCalls != null
-			? `${m.calls} web ${m.calls === 1 ? "call" : "calls"} vs ${m.typicalCalls} typical`
-			: `${m.calls} web calls`,
-		m.secs != null && m.typicalSecs != null
-			? `${m.secs}s vs ${m.typicalSecs}s`
-			: null,
-	]
-		.filter(Boolean)
-		.join(" · ");
+	m.secs != null && m.typicalSecs != null
+		? `${m.secs}s vs ${m.typicalSecs}s typical`
+		: m.secs != null
+			? `${m.secs}s`
+			: `${m.reused} sources from memory`;
 
 function MemoryDetail({ c, m }: { c: Cluster; m: MemoryHit }) {
 	return (

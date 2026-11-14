@@ -1,5 +1,6 @@
 // "From memory" panel for a research run: which earlier runs memory recall matched, how many
-// of their verified sources the agent reused, and what that saved against a typical run.
+// of their verified sources the agent reused, and how its time compares with a typical run.
+// Memory widens and sharpens the live search; fewer search calls is never shown as a win.
 // Every number comes from recorded events and durations, never from the model's answer.
 import { Link } from "@tanstack/react-router";
 import { formatPT } from "#/components/PriceChart";
@@ -49,7 +50,6 @@ export function MemoryPanel({
 	const b = m.baseline;
 	const less = (now: number, typical: number) =>
 		typical > 0 ? Math.round((1 - now / typical) * 100) : null;
-	const callsLess = b ? less(calls, b.searchCalls) : null;
 	const timeLess =
 		b && durationMs != null ? less(durationMs, b.durationMs) : null;
 
@@ -72,8 +72,7 @@ export function MemoryPanel({
 				<Stat
 					label="Search calls"
 					value={String(calls)}
-					sub={b ? `typical run: ${b.searchCalls}` : "no baseline yet"}
-					delta={callsLess}
+					sub="live Telem / Tavily searches"
 				/>
 				<Stat
 					label="Time"
