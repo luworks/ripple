@@ -7,11 +7,10 @@ import type {
 } from "lightweight-charts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timeline } from "#/data/jensen-huang-timeline";
-import newsData from "#/data/nvda-news.json";
+import sourcesData from "#/data/nvda-sources.json";
 import {
 	type Bar,
 	getBars,
-	getPosts,
 	INTERVALS,
 	type Interval,
 	type Packed,
@@ -30,7 +29,7 @@ export const Route = createFileRoute("/stock/nvda")({
 			{
 				name: "description",
 				content:
-					"Replay of Nvidia's minute bars around Jensen Huang's resignation, with every Telem post and what acting on it would have returned.",
+					"Replay of Nvidia's minute bars around Jensen Huang's resignation, with every Telem and Tavily hit, which source found it first, and what acting on it would have returned.",
 			},
 		],
 	}),
@@ -38,11 +37,10 @@ export const Route = createFileRoute("/stock/nvda")({
 		INTERVALS.includes(s.i as Interval) ? { i: s.i as Interval } : {},
 	loaderDeps: ({ search }) => ({ i: search.i ?? "1m" }),
 	loader: async ({ deps }) => {
-		const [packed, posts] = await Promise.all([
-			getBars({ data: { symbol: SYMBOL, interval: deps.i } }),
-			getPosts(),
-		]);
-		return { packed: JSON.parse(packed) as Packed, posts };
+		const packed = await getBars({
+			data: { symbol: SYMBOL, interval: deps.i },
+		});
+		return { packed: JSON.parse(packed) as Packed };
 	},
 	staleTime: Number.POSITIVE_INFINITY,
 	preloadStaleTime: Number.POSITIVE_INFINITY,
@@ -62,7 +60,6 @@ const at = (iso: string) => Date.parse(iso) / 1000;
 // Figures read off the 1-minute bars.
 const DAY_LOW = { t: at("2026-11-12T14:31:00Z"), price: 148.8 };
 const DAY_CLOSE = 166.19;
-const FIRST_ALERT = at("2026-11-12T13:52:29Z");
 const ALERT_ZONE = [at("2026-11-12T13:52:00Z"), at("2026-11-12T14:30:00Z")];
 const REBOUND_ZONE = [DAY_LOW.t, at("2026-11-12T14:58:00Z")];
 // Shaded behind the candles on intraday charts.
@@ -75,22 +72,111 @@ const REPLAY_VIEW = [at("2026-11-12T13:30:00Z"), at("2026-11-12T15:35:00Z")];
 // Nov 12's close), measured against Nov 12's low and close.
 const OUTCOME_WINDOW = [at("2026-11-08T00:00:00Z"), at("2026-11-12T21:00:00Z")];
 
-// One dot on a strip above the chart: a Telem post or a news story.
+// One dot on a source row: something Telem or Tavily found. Day-precision items are pinned to
+// noon ET so they snap to their own daily bar; they only show on daily-and-above charts.
+type Precision = "second" | "minute" | "day";
 type Item = {
 	t: number;
-	source: string;
+	precision: Precision;
+	via: string;
+	provider: string;
+	platform: string;
 	title: string;
 	url: string;
-	minute?: boolean;
+	move: string | null;
+	row: string; // "Platform · provider"
 };
 
-const news: Item[] = newsData.news.map((n) => ({
-	t: at(n.t),
-	source: n.source,
-	title: n.title,
-	url: n.url,
-	minute: n.precision === "minute",
-}));
+const items: Item[] = sourcesData.items
+	.map((s) => {
+		const precision = s.precision as Precision;
+		return {
+			t: precision === "day" ? at(`${s.t.slice(0, 10)}T17:00:00Z`) : at(s.t),
+			precision,
+			via: s.via,
+			provider: s.provider,
+			platform: s.platform,
+			title: s.title,
+			url: s.url,
+			move: s.move as string | null,
+			row: `${s.platform} · ${s.provider}`,
+		};
+	})
+	.sort((a, b) => a.t - b.t);
+
+// Search stats per row, for the label tooltip.
+const providerStats = new Map(
+	sourcesData.providers.map((p) => [`${p.platform} · ${p.provider}`, p]),
+);
+
+// One colour per pipeline; the row label carries the platform and provider.
+const VIA: Record<string, { dot: string; first: string; text: string }> = {
+	telem: { dot: "bg-sky-400", first: "bg-sky-300", text: "text-sky-300" },
+	tavily: {
+		dot: "bg-orange-400",
+		first: "bg-orange-300",
+		text: "text-orange-300",
+	},
+};
+const viaOf = (via: string) =>
+	VIA[via] ?? {
+		dot: "bg-zinc-400",
+		first: "bg-zinc-300",
+		text: "text-zinc-300",
+	};
+
+// Intraday moves from the move scan (/tmp/nvda-news/moves.json); start = when price began moving.
+const MOVES = [
+	{
+		id: "I-1109-1103",
+		move: "Intraday −2.0%",
+		start: at("2026-11-09T16:03:00Z"),
+	},
+	{
+		id: "I-1111-1655",
+		move: "After-hours −3.6%",
+		start: at("2026-11-11T21:55:00Z"),
+	},
+	{
+		id: "I-1111-1728",
+		move: "After-hours −5.3%",
+		start: at("2026-11-11T22:28:00Z"),
+	},
+	{
+		id: "I-1112-0848",
+		move: "Pre-market −2.9%",
+		start: at("2026-11-12T13:48:00Z"),
+	},
+	{
+		id: "I-1113-0930",
+		move: "Intraday −2.1%",
+		start: at("2026-11-13T14:30:00Z"),
+	},
+];
+const LEAD = 15 * 60; // a hit this long before the move still counts as warning
+const HORIZON = 24 * 3600; // later than this, the sources missed it
+
+// Earliest item tagged with the move, or the earliest timed item from LEAD before it to HORIZON after.
+function firstHit(id: string, start: number): Item | undefined {
+	return items.find(
+		(i) =>
+			i.move === id ||
+			(i.precision !== "day" && i.t >= start - LEAD && i.t <= start + HORIZON),
+	);
+}
+
+const alertMove = MOVES[3];
+const FIRST_ALERT = firstHit(alertMove.id, alertMove.start);
+
+const leadLag = MOVES.map((m) => ({ ...m, hit: firstHit(m.id, m.start) }));
+
+function duration(s: number) {
+	const a = Math.round(Math.abs(s));
+	const h = Math.floor(a / 3600);
+	const m = Math.floor((a % 3600) / 60);
+	if (h) return `${h} h ${m} m`;
+	return m ? `${m} m ${a % 60} s` : `${a} s`;
+}
 
 type Pin = { t: number; n: string; title: string; detail: string };
 
@@ -145,77 +231,6 @@ const dayPins: Pin[] = timeline.map((e, i) => ({
 	detail: e.detail,
 }));
 
-const insights = [
-	{
-		label:
-			"Sell on Telem's first resignation post (8:52:29 ET; $155.21 at 8:53)",
-		value: "4.1% loss avoided",
-		note: "vs. the $148.80 low at 9:31; 3.8% vs. the $149.27 open",
-		tone: "good",
-	},
-	{
-		label: "Posts peaked 9:00–10:00 ET (14 posts) at the bottom",
-		value: "+9.4% in 27 min",
-		note: "From $148.80 at 9:31 to $162.72 at 9:58; +12.3% to the 11:12 high",
-		tone: "good",
-	},
-	{
-		label: "Missed: NYT story at 16:55:36 ET, Nov 11",
-		value: "13.1% left on the table",
-		note: "Selling at $171.14 (16:56) vs. the Nov 12 low. Price fell 10.4% by the 17:28 WSJ scoop; Telem's first post on it came at 20:49.",
-		tone: "bad",
-	},
-] as const;
-
-// t = when to center the chart for that row.
-const leadLag = [
-	{
-		t: at("2026-11-09T16:03:00Z"),
-		move: "Intraday −2.0%",
-		price: "Nov 9 11:03",
-		news: "NYT 11:02:52",
-		telem: "None",
-		gap: "News in the same minute; Telem missed it",
-		good: false,
-	},
-	{
-		t: at("2026-11-11T21:55:00Z"),
-		move: "After-hours −3.6%",
-		price: "Nov 11 16:55",
-		news: "NYT 16:55:36",
-		telem: "Nov 11 20:49",
-		gap: "News in the same minute; Telem 3 h 54 m later",
-		good: false,
-	},
-	{
-		t: at("2026-11-11T22:28:00Z"),
-		move: "After-hours −5.3%",
-		price: "Nov 11 17:28",
-		news: "WSJ 17:28",
-		telem: "Nov 11 20:49",
-		gap: "News in the same minute; Telem 3 h 21 m later",
-		good: false,
-	},
-	{
-		t: at("2026-11-12T13:48:00Z"),
-		move: "Pre-market −2.9%",
-		price: "Nov 12 08:48",
-		news: "X wire 08:49:33",
-		telem: "Nov 12 08:52:29",
-		gap: "Telem 3 min behind the first wire",
-		good: false,
-	},
-	{
-		t: DAY_LOW.t,
-		move: "Rebound +9.4%",
-		price: "Nov 12 09:31",
-		news: "—",
-		telem: "Peak 09:00–10:00",
-		gap: "In step: peak attention ≈ bottom",
-		good: true,
-	},
-];
-
 const intervals: { id: Interval; label: string; span: string }[] = [
 	{ id: "1m", label: "1m", span: "last ~30 days" },
 	{ id: "2m", label: "2m", span: "last 60 days" },
@@ -227,6 +242,14 @@ const intervals: { id: Interval; label: string; span: string }[] = [
 	{ id: "1wk", label: "1W", span: "since 1999" },
 	{ id: "1mo", label: "1M", span: "since 1999" },
 ];
+const BAR_MIN: Partial<Record<Interval, number>> = {
+	"1m": 1,
+	"2m": 2,
+	"5m": 5,
+	"15m": 15,
+	"30m": 30,
+	"1h": 60,
+};
 const intraday = (i: Interval) => !["1d", "1wk", "1mo"].includes(i);
 
 /* ------------------------------------------------------------------ formatting */
@@ -255,6 +278,27 @@ const fmtWeekday = fmt({ weekday: "short", month: "short", day: "numeric" });
 const fmtMonthDay = fmt({ month: "short", day: "numeric" });
 const fmtMonth = fmt({ month: "short" });
 const fmtYear = fmt({ year: "numeric" });
+const fmtDayMin = fmt({
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+});
+const fmtDaySec = fmt({
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+});
+// An item's time at the precision its source gave.
+const when = (it: Item) =>
+	(it.precision === "day"
+		? fmtDay
+		: it.precision === "minute"
+			? fmtDayMin
+			: fmtDaySec
+	).format(it.t * 1000);
 
 const pct = (a: number, b: number) => (a / b - 1) * 100;
 
@@ -307,6 +351,18 @@ function snapIndex(bars: Bar[], t: number): number {
 	return lo;
 }
 
+// First index in time-sorted items whose t is at or after t.
+function lowerBound(list: Item[], t: number): number {
+	let lo = 0;
+	let hi = list.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (list[mid].t < t) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo;
+}
+
 function defaultView(c: IChartApi, bars: Bar[], interval: Interval) {
 	const last = bars[bars.length - 1].time;
 	if (intraday(interval) && bars[0].time < REPLAY_VIEW[0]) {
@@ -338,47 +394,31 @@ function centerOn(c: IChartApi | null, interval: Interval, t: number) {
 /* ------------------------------------------------------------------ page */
 
 function NvdaPage() {
-	const [tab, setTab] = useState<"ours" | "tv">("ours");
 	return (
 		<main className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
-			<div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+			<div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6">
 				<p className="text-sm text-emerald-400">Stock · NASDAQ</p>
 				<h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
 					Nvidia (NVDA): did Telem's alerts pay off?
 				</h1>
 				<p className="mt-2 max-w-3xl text-sm text-zinc-400">
-					Minute bars around Jensen Huang's resignation, with every post Telem
-					collected and the news stories behind each sharp move. Hover a dot or
-					a numbered marker for its exact time and what acting on it would have
-					returned. Times are New York (ET).
+					Minute bars around Jensen Huang's resignation, with one row per
+					platform and search provider for everything Telem and Tavily found, so
+					you can see which source surfaced it first. Press Play to walk the
+					timeline. Hover a dot or a numbered marker for its exact time and what
+					acting on it would have returned. Times are New York (ET).
 				</p>
-
-				<div className="mt-6 flex gap-1 border-b border-zinc-800 text-sm">
-					{(
-						[
-							["ours", "Alert replay"],
-							["tv", "TradingView"],
-						] as const
-					).map(([id, label]) => (
-						<button
-							key={id}
-							type="button"
-							onClick={() => setTab(id)}
-							className={`-mb-px border-b-2 px-3 py-2 ${tab === id ? "border-emerald-400 text-zinc-100" : "border-transparent text-zinc-400 hover:text-zinc-200"}`}
-						>
-							{label}
-						</button>
-					))}
-				</div>
-
-				{tab === "ours" ? <AlertReplay /> : <TradingViewWidget />}
+				<AlertReplay />
 			</div>
 		</main>
 	);
 }
 
 const CARD =
-	"pointer-events-none absolute z-20 hidden w-80 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-xs leading-relaxed text-zinc-100 shadow-xl shadow-black/60 group-hover:block";
+	"absolute z-20 hidden w-80 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-xs leading-relaxed text-zinc-100 shadow-xl shadow-black/60 group-hover:block";
+const LABEL_W = "grid-cols-[176px_minmax(0,1fr)]";
+const TOP_ROWS = 10;
+const SPEEDS = [1, 5, 30]; // minutes of bars per second
 
 function AlertReplay() {
 	const box = useRef<HTMLDivElement>(null);
@@ -388,41 +428,95 @@ function AlertReplay() {
 	const pinEls = useRef<(HTMLDivElement | null)[]>([]);
 	const dotEls = useRef<Record<string, (HTMLDivElement | null)[]>>({});
 	const bandEls = useRef<(HTMLDivElement | null)[]>([]);
+	const maskEl = useRef<HTMLDivElement>(null);
 	const router = useRouter();
 	const { i: interval } = Route.useLoaderDeps();
-	const { packed, posts } = Route.useLoaderData();
+	const { packed } = Route.useLoaderData();
 	const bars = useMemo(() => unpack(packed), [packed]);
 	const [hover, setHover] = useState<Bar | null>(null);
 	const [ready, setReady] = useState(false);
+	const [showAll, setShowAll] = useState(false);
+	// [first, last) indexes into `eligible` of the items inside the visible time range.
+	const [inView, setInView] = useState<[number, number]>([0, 0]);
+
+	// Play mode: cursor = index of the last bar shown; feed starts at bar `start`.
+	const [playing, setPlaying] = useState(false);
+	const [speed, setSpeed] = useState(5);
+	const [cursor, setCursor] = useState<number | null>(null);
+	const [start, setStart] = useState(0);
+	const pos = useRef(0);
+	const end = useRef(0);
+	const cursorRef = useRef(cursor);
+	cursorRef.current = cursor;
 
 	const isIntraday = intraday(interval);
 	const pins = isIntraday ? pricePins : dayPins;
-	// Items that fall in the same bar share one dot, so none hide under another.
-	const strips = useMemo(() => {
-		const group = (items: Item[]) => {
-			const groups: { i: number; items: Item[] }[] = [];
-			for (const it of items) {
-				const i = snapIndex(bars, it.t);
-				if (i < 0) continue;
-				const g = groups.at(-1);
-				if (g?.i === i) g.items.push(it);
-				else groups.push({ i, items: [it] });
-			}
-			return groups;
-		};
-		const telem = posts.map((p) => ({ ...p, source: p.platform }));
-		return [
-			{ key: "news", label: "News", color: "violet", groups: group(news) },
-			{ key: "telem", label: "Telem", color: "sky", groups: group(telem) },
-		] as const;
-	}, [posts, bars]);
+	const eligible = useMemo(
+		() => (isIntraday ? items.filter((i) => i.precision !== "day") : items),
+		[isIntraday],
+	);
+	const barOf = useMemo(
+		() => eligible.map((it) => snapIndex(bars, it.t)),
+		[eligible, bars],
+	);
 
-	// Move pins and post dots to their bars' screen positions; hide off-screen ones.
+	// One row per platform · provider, fastest source (earliest item in view) on top.
+	const rows = useMemo(() => {
+		const map = new Map<
+			string,
+			{ key: string; via: string; all: number[]; count: number; first?: Item }
+		>();
+		eligible.forEach((it, k) => {
+			let r = map.get(it.row);
+			if (!r) {
+				r = { key: it.row, via: it.via, all: [], count: 0 };
+				map.set(it.row, r);
+			}
+			r.all.push(k);
+			if (k >= inView[0] && k < inView[1]) {
+				r.count++;
+				r.first ??= it;
+			}
+		});
+		return [...map.values()]
+			.map((r) => {
+				// Items that fall in the same bar share one dot, so none hide under another.
+				const groups: { i: number; items: Item[] }[] = [];
+				for (const k of r.all) {
+					const i = barOf[k];
+					if (i < 0) continue;
+					const g = groups.at(-1);
+					if (g?.i === i) g.items.push(eligible[k]);
+					else groups.push({ i, items: [eligible[k]] });
+				}
+				return { ...r, groups, earliest: eligible[r.all[0]].t };
+			})
+			.sort(
+				(a, b) =>
+					(a.first?.t ?? Number.POSITIVE_INFINITY) -
+						(b.first?.t ?? Number.POSITIVE_INFINITY) || a.earliest - b.earliest,
+			);
+	}, [eligible, barOf, inView]);
+	const shownRows = showAll ? rows : rows.slice(0, TOP_ROWS);
+
+	// Recount the items in view only when one enters or leaves, not on every scroll frame.
+	const countInView = useCallback(() => {
+		const r = chart.current?.timeScale().getVisibleRange();
+		if (!r) return;
+		const lo = lowerBound(eligible, r.from as number);
+		const hi = lowerBound(eligible, (r.to as number) + 1);
+		setInView((v) => (v[0] === lo && v[1] === hi ? v : [lo, hi]));
+	}, [eligible]);
+	const countRef = useRef(countInView);
+	countRef.current = countInView;
+
+	// Move pins, dots, bands and the play mask to their bars' screen positions.
 	const place = useCallback(() => {
 		const c = chart.current;
 		const s = candles.current;
 		if (!c || !s || !bars.length) return;
 		const w = box.current?.clientWidth ?? 0;
+		const cur = cursorRef.current;
 		// Bar index = logical index, which also maps bars scrolled off-screen.
 		const ts = c.timeScale();
 		const xOf = (t: number) => {
@@ -448,7 +542,13 @@ function AlertReplay() {
 			stack.set(i, n + 1);
 			const high = i < 0 ? null : s.priceToCoordinate(bars[i].high);
 			const y = high === null ? null : high - n * 24;
-			if (x === null || y === null || x < 0 || x > w - 70) {
+			if (
+				x === null ||
+				y === null ||
+				x < 0 ||
+				x > w - 70 ||
+				(cur !== null && i > cur)
+			) {
 				el.style.display = "none";
 				return;
 			}
@@ -457,12 +557,12 @@ function AlertReplay() {
 			el.style.top = `${y - 4}px`;
 			edge(el, x);
 		});
-		for (const strip of strips)
-			strip.groups.forEach((g, k) => {
-				const el = dotEls.current[strip.key]?.[k];
+		for (const row of shownRows)
+			row.groups.forEach((g, k) => {
+				const el = dotEls.current[row.key]?.[k];
 				if (!el) return;
 				const x = ts.logicalToCoordinate(g.i as Logical);
-				if (x === null || x < 48 || x > w - 70) {
+				if (x === null || x < 4 || x > w - 70 || (cur !== null && g.i > cur)) {
 					el.style.display = "none";
 					return;
 				}
@@ -471,6 +571,8 @@ function AlertReplay() {
 				edge(el, x);
 			});
 		const half = ts.options().barSpacing / 2;
+		const plotW = w - c.priceScale("right").width();
+		const plotH = (box.current?.clientHeight ?? 0) - ts.height();
 		const paneH = c.panes()[0]?.getHeight() ?? 0;
 		BANDS.forEach((b, k) => {
 			const el = bandEls.current[k];
@@ -484,10 +586,23 @@ function AlertReplay() {
 			const left = Math.max(0, a - half);
 			el.style.display = "block";
 			el.style.left = `${left}px`;
-			el.style.width = `${Math.max(0, Math.min(w - 60, z + half) - left)}px`;
+			el.style.width = `${Math.max(0, Math.min(plotW, z + half) - left)}px`;
 			el.style.height = `${paneH}px`;
 		});
-	}, [bars, pins, strips, isIntraday]);
+		// Play mode hides every bar after the cursor behind an opaque mask.
+		const mask = maskEl.current;
+		if (mask) {
+			const x = cur === null ? null : ts.logicalToCoordinate(cur as Logical);
+			if (x === null) mask.style.display = "none";
+			else {
+				const left = Math.max(0, Math.min(plotW, x + half));
+				mask.style.display = "block";
+				mask.style.left = `${left}px`;
+				mask.style.width = `${plotW - left}px`;
+				mask.style.height = `${plotH}px`;
+			}
+		}
+	}, [bars, pins, shownRows, isIntraday]);
 	const placeRef = useRef(place);
 	placeRef.current = place;
 
@@ -508,7 +623,7 @@ function AlertReplay() {
 					vertLines: { color: "#141416" },
 					horzLines: { color: "#141416" },
 				},
-				rightPriceScale: { borderColor: "#27272a" },
+				rightPriceScale: { borderColor: "#27272a", minimumWidth: 64 },
 				timeScale: {
 					borderColor: "#27272a",
 					timeVisible: true,
@@ -548,7 +663,11 @@ function AlertReplay() {
 					| undefined;
 				setHover(d?.open !== undefined ? { ...d, v: 0 } : null);
 			});
-			const move = () => requestAnimationFrame(() => placeRef.current());
+			const move = () =>
+				requestAnimationFrame(() => {
+					placeRef.current();
+					countRef.current();
+				});
 			c.timeScale().subscribeVisibleLogicalRangeChange(move);
 			const ro = new ResizeObserver(move);
 			ro.observe(box.current);
@@ -585,9 +704,11 @@ function AlertReplay() {
 		};
 	}, [ready, router]);
 
-	// Push bars into the chart, then frame the default view.
+	// Push bars into the chart, then frame the default view. New bars end any replay.
 	useEffect(() => {
 		const c = chart.current;
+		setPlaying(false);
+		setCursor(null);
 		if (!ready || !bars.length || !c) return;
 		const t = (x: number) => x as UTCTimestamp;
 		candles.current?.setData(
@@ -611,15 +732,122 @@ function AlertReplay() {
 			),
 		);
 		defaultView(c, bars, interval);
-		requestAnimationFrame(() => placeRef.current());
+		requestAnimationFrame(() => {
+			placeRef.current();
+			countRef.current();
+		});
 	}, [bars, ready, interval]);
+
+	// The last-value label would reveal the final price during a replay.
+	const replaying = cursor !== null;
+	useEffect(() => {
+		if (!ready) return;
+		candles.current?.applyOptions({ lastValueVisible: !replaying });
+		volume.current?.applyOptions({ lastValueVisible: !replaying });
+	}, [ready, replaying]);
+
+	// Re-place after any render that may have changed rows, the cursor or the dots.
+	useEffect(() => {
+		placeRef.current();
+	});
+
+	/* ---------------------------------------------------------------- play mode */
+
+	// Keep the cursor in view: once it nears the right edge, scroll it back to 70% across.
+	const follow = useCallback((i: number) => {
+		const ts = chart.current?.timeScale();
+		const r = ts?.getVisibleLogicalRange();
+		if (!ts || !r) return;
+		const len = r.to - r.from;
+		if (i > r.to - len * 0.1 || i < r.from)
+			ts.setVisibleLogicalRange({ from: i - len * 0.7, to: i + len * 0.3 });
+	}, []);
+
+	const jump = useCallback(
+		(i: number) => {
+			if (i < start) setStart(i);
+			end.current = Math.max(end.current, i);
+			pos.current = i;
+			setCursor(i);
+			follow(i);
+		},
+		[start, follow],
+	);
+
+	const play = () => {
+		if (cursor === null || pos.current >= end.current) {
+			const r = chart.current?.timeScale().getVisibleLogicalRange();
+			const s = Math.max(
+				0,
+				Math.min(bars.length - 1, Math.ceil((r?.from as number) ?? 0)),
+			);
+			end.current =
+				bars[s].time < REPLAY_VIEW[1]
+					? snapIndex(bars, REPLAY_VIEW[1])
+					: bars.length - 1;
+			pos.current = s;
+			setStart(s);
+			setCursor(s);
+		}
+		setPlaying(true);
+	};
+
+	const reset = () => {
+		setPlaying(false);
+		setCursor(null);
+	};
+
+	// Advance by `speed` minutes of bars per second; overnight gaps are skipped, not waited out.
+	useEffect(() => {
+		if (!playing) return;
+		const perBar = BAR_MIN[interval] ?? 1;
+		let last = performance.now();
+		let id = 0;
+		const step = (now: number) => {
+			const dt = Math.min(0.1, (now - last) / 1000);
+			last = now;
+			pos.current = Math.min(end.current, pos.current + (speed * dt) / perBar);
+			const i = Math.floor(pos.current);
+			if (i !== cursorRef.current) {
+				cursorRef.current = i;
+				setCursor(i);
+				follow(i);
+			}
+			if (pos.current >= end.current) {
+				setPlaying(false);
+				return;
+			}
+			id = requestAnimationFrame(step);
+		};
+		id = requestAnimationFrame(step);
+		return () => cancelAnimationFrame(id);
+	}, [playing, speed, interval, follow]);
+
+	useEffect(() => {
+		const pause = () => document.hidden && setPlaying(false);
+		document.addEventListener("visibilitychange", pause);
+		return () => document.removeEventListener("visibilitychange", pause);
+	}, []);
+
+	// Items the cursor has passed since the replay started, newest first.
+	const feed = useMemo(() => {
+		if (cursor === null) return [];
+		const out: { it: Item; i: number }[] = [];
+		eligible.forEach((it, k) => {
+			const i = barOf[k];
+			if (i >= start && i <= cursor) out.push({ it, i });
+		});
+		return out.reverse();
+	}, [cursor, start, eligible, barOf]);
+	const newest = feed[0]?.it.url;
 
 	const last = bars.at(-1);
 	const prev = bars.at(-2);
 	const shown = hover ?? last;
+	const cursorBar = cursor === null ? undefined : bars[cursor];
 
-	// "What if you acted here" for the scandal week. A post or story is acted on at the close of
-	// the first full minute after it (8:52:29 → the 8:53 bar's close), never at an earlier price.
+	// "What if you acted here" for the scandal week. An item is acted on at the close of the first
+	// full bar after it (8:52:29 → the 8:53 bar's close), never at an earlier price.
 	const outcome = (t: number, item = false) => {
 		if (!isIntraday || t < OUTCOME_WINDOW[0] || t > OUTCOME_WINDOW[1])
 			return null;
@@ -648,13 +876,62 @@ function AlertReplay() {
 		);
 	};
 
+	// Tiles cite item times from the data; a claim with no matching item is left out.
+	const insights = useMemo(() => {
+		const out: {
+			label: string;
+			value: string;
+			note: string;
+			tone: "good" | "bad";
+		}[] = [];
+		const a = FIRST_ALERT;
+		const next = a ? bars[snapIndex(bars, a.t) + 1] : undefined;
+		if (a && next && next.close > DAY_LOW.price) {
+			const p = next.close;
+			out.push({
+				label: `Sell on the first hit about the resignation (${fmtSec.format(a.t * 1000)} ET, ${a.row}; $${p.toFixed(2)} at ${fmtTime.format(next.time * 1000)})`,
+				value: `${(((p - DAY_LOW.price) / p) * 100).toFixed(1)}% loss avoided`,
+				note: `vs. the $${DAY_LOW.price.toFixed(2)} low at 9:31`,
+				tone: "good",
+			});
+		} else
+			out.push({
+				label: "Sell at the 8:48 pre-market drop ($159.00)",
+				value: `${(((159 - DAY_LOW.price) / 159) * 100).toFixed(1)}% loss avoided`,
+				note: "No Telem or Tavily hit came before the open",
+				tone: "good",
+			});
+		const peak = items.filter(
+			(i) =>
+				i.precision !== "day" &&
+				i.t >= at("2026-11-12T14:00:00Z") &&
+				i.t < at("2026-11-12T15:00:00Z"),
+		).length;
+		out.push({
+			label: peak
+				? `${peak} hits 9:00–10:00 ET, at the bottom`
+				: "Bottom at 9:31 ET",
+			value: "+9.4% in 27 min",
+			note: "From $148.80 at 9:31 to $162.72 at 9:58; +12.3% to the 11:12 high",
+			tone: "good",
+		});
+		const nyt = leadLag[1].hit;
+		out.push({
+			label: "Missed: the after-hours drop at 16:55 ET, Nov 11",
+			value: "13.1% left on the table",
+			note: `Selling at $171.14 (16:56) vs. the Nov 12 low. Price fell 10.4% by 17:28${nyt ? `; the first hit (${nyt.row}) came at ${fmtDaySec.format(nyt.t * 1000)}` : ""}.`,
+			tone: "bad",
+		});
+		return out;
+	}, [bars]);
+
 	return (
-		<section className="mt-4">
+		<section className="mt-6">
 			{isIntraday && (
 				<div className="mb-4 grid gap-2 sm:grid-cols-3">
 					{insights.map((s) => (
 						<div
-							key={s.label}
+							key={s.value}
 							className={`rounded-lg border bg-zinc-900/40 px-3 py-2.5 ${s.tone === "bad" ? "border-red-500/30" : "border-zinc-800"}`}
 						>
 							<div className="text-xs text-zinc-400">{s.label}</div>
@@ -687,9 +964,47 @@ function AlertReplay() {
 					{intervals.find((i) => i.id === interval)?.span} ·{" "}
 					{bars.length.toLocaleString()} bars
 				</span>
+				{isIntraday && (
+					<div className="ml-auto flex flex-wrap items-center gap-1 text-sm">
+						<button
+							type="button"
+							onClick={() => (playing ? setPlaying(false) : play())}
+							className="rounded-md bg-emerald-500 px-3 py-1 font-medium text-zinc-950 hover:bg-emerald-400"
+						>
+							{playing ? "Pause" : cursor === null ? "Play" : "Resume"}
+						</button>
+						<div className="flex rounded-md border border-zinc-800">
+							{SPEEDS.map((v) => (
+								<button
+									key={v}
+									type="button"
+									onClick={() => setSpeed(v)}
+									aria-pressed={speed === v}
+									className={`px-2 py-1 text-xs ${speed === v ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+								>
+									{v} min/s
+								</button>
+							))}
+						</div>
+						<button
+							type="button"
+							onClick={reset}
+							disabled={cursor === null}
+							className="rounded-md px-2.5 py-1 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 disabled:opacity-40"
+						>
+							Reset
+						</button>
+					</div>
+				)}
 			</div>
 
 			<div className="mt-3 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-zinc-400">
+				{cursorBar && (
+					<span className="rounded bg-zinc-800 px-1.5 text-zinc-100">
+						Replay at {fmtFull.format(cursorBar.time * 1000)} ET · $
+						{cursorBar.close.toFixed(2)}
+					</span>
+				)}
 				{shown && (
 					<>
 						<span className="text-zinc-200">
@@ -700,7 +1015,7 @@ function AlertReplay() {
 						<span>H {shown.high.toFixed(2)}</span>
 						<span>L {shown.low.toFixed(2)}</span>
 						<span>C {shown.close.toFixed(2)}</span>
-						{!hover && prev && last && (
+						{!hover && !cursorBar && prev && last && (
 							<span
 								className={
 									last.close >= prev.close ? "text-emerald-400" : "text-red-400"
@@ -715,96 +1030,157 @@ function AlertReplay() {
 			</div>
 
 			<div className="relative z-30 mt-2 rounded-t-lg border border-b-0 border-zinc-800 bg-zinc-900/60">
-				{strips.map((strip) => (
-					<div
-						key={strip.key}
-						className="relative h-7 border-b border-zinc-800/60 last:border-b-0"
-					>
-						<span
-							className={`absolute left-2 top-1.5 text-[11px] ${strip.color === "sky" ? "text-sky-400" : "text-violet-400"}`}
-						>
-							{strip.label}
-						</span>
-						{strip.groups.map((g, k) => (
-							<Dot
-								key={`${g.i}-${g.items[0].url}`}
-								ref={(el) => {
-									dotEls.current[strip.key] ??= [];
-									dotEls.current[strip.key][k] = el;
-								}}
-								items={g.items}
-								color={strip.color}
-								outcome={outcome(g.items[0].t, true)}
-							/>
-						))}
-					</div>
-				))}
-			</div>
-			<div className="relative h-[520px] rounded-b-lg border border-zinc-800 bg-zinc-950">
-				{BANDS.map((b, k) => (
-					<div
-						key={b.from}
-						ref={(el) => {
-							bandEls.current[k] = el;
-						}}
-						className={`absolute top-0 hidden ${b.cls}`}
-					/>
-				))}
-				<div ref={box} className="absolute inset-0 overflow-hidden" />
-				<div className="pointer-events-none absolute inset-0 z-10">
-					{pins.map((p, k) => (
+				{shownRows.map((row) => {
+					const st = providerStats.get(row.key);
+					return (
 						<div
-							key={p.t + p.title}
-							ref={(el) => {
-								pinEls.current[k] = el;
-							}}
-							className="group pointer-events-auto absolute hidden -translate-x-1/2 hover:z-30 -translate-y-full text-amber-500"
+							key={row.key}
+							className={`grid ${LABEL_W} border-b border-zinc-800/60`}
 						>
-							<button
-								type="button"
-								onClick={() => centerOn(chart.current, interval, p.t)}
-								className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-zinc-950 ring-2 ring-zinc-950"
+							<div
+								className="flex h-8 min-w-0 flex-col justify-center border-r border-zinc-800 px-2 leading-tight"
+								title={
+									st
+										? `${row.via} · ${st.queries} queries · ${st.results} results · ${st.dated} dated`
+										: row.via
+								}
 							>
-								{p.n}
-							</button>
-							<div className="mx-auto h-2.5 w-px bg-current opacity-70" />
-							<div className={`${CARD} bottom-[calc(100%+6px)]`}>
-								<div className="font-semibold">{p.title}</div>
-								<Stamp t={p.t} dayOnly={!isIntraday} />
-								<div className="text-zinc-300">{p.detail}</div>
-								{outcome(p.t)}
+								<span className="flex items-center gap-1.5 truncate text-[11px] text-zinc-200">
+									<i
+										className={`inline-block size-2 shrink-0 rounded-full ${viaOf(row.via).dot}`}
+									/>
+									<span className="truncate">{row.key}</span>
+								</span>
+								<span className="truncate font-mono text-[10px] text-zinc-500">
+									{row.first
+										? `${row.count} · ${when(row.first)}`
+										: `0 in view · ${row.all.length} total`}
+								</span>
+							</div>
+							<div className="relative h-8">
+								{row.groups.map((g, k) => (
+									<Dot
+										key={`${g.i}-${g.items[0].url}`}
+										ref={(el) => {
+											dotEls.current[row.key] ??= [];
+											dotEls.current[row.key][k] = el;
+										}}
+										items={g.items}
+										pulse={g.items.some((it) => it.url === newest)}
+										onJump={cursor === null ? undefined : () => jump(g.i)}
+										outcome={outcome(g.items[0].t, true)}
+									/>
+								))}
 							</div>
 						</div>
+					);
+				})}
+				{rows.length > TOP_ROWS && (
+					<button
+						type="button"
+						onClick={() => setShowAll((v) => !v)}
+						className="w-full border-b border-zinc-800/60 px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200"
+					>
+						{showAll
+							? `Show top ${TOP_ROWS}`
+							: `Show all ${rows.length} sources`}
+					</button>
+				)}
+				{!rows.length && (
+					<div className="px-2 py-1.5 text-xs text-zinc-500">
+						No Telem or Tavily items for this interval.
+					</div>
+				)}
+			</div>
+			<div
+				className={`grid ${LABEL_W} rounded-b-lg border border-zinc-800 bg-zinc-950`}
+			>
+				<div className="space-y-2 border-r border-zinc-800 p-2 text-[11px] leading-snug text-zinc-400">
+					<p className="text-zinc-500">
+						Rows: platform · provider, earliest in view on top. Count and first
+						time are for the visible range.
+					</p>
+					{isIntraday && (
+						<>
+							<p>
+								<i className="mr-1.5 inline-block size-2.5 rounded-full bg-sky-400" />
+								Telem (number = items that bar)
+							</p>
+							<p>
+								<i className="mr-1.5 inline-block size-2.5 rounded-full bg-orange-400" />
+								Tavily
+							</p>
+							<p>
+								<i className="mr-1.5 inline-block h-2.5 w-3.5 rounded-sm bg-red-500/25" />
+								First alert to open: loss you could avoid
+							</p>
+							<p>
+								<i className="mr-1.5 inline-block h-2.5 w-3.5 rounded-sm bg-emerald-500/25" />
+								Low to rebound: buy-the-dip window
+							</p>
+						</>
+					)}
+					<p>
+						<i className="mr-1.5 inline-block size-2.5 rounded-full bg-amber-500" />
+						{isIntraday ? "Price event" : "Timeline event"} (click to center)
+					</p>
+				</div>
+				<div className="relative h-[520px]">
+					{BANDS.map((b, k) => (
+						<div
+							key={b.from}
+							ref={(el) => {
+								bandEls.current[k] = el;
+							}}
+							className={`absolute top-0 hidden ${b.cls}`}
+						/>
 					))}
+					{/* z-0: the chart's canvases set z-index; keep them under the mask and pins. */}
+					<div ref={box} className="absolute inset-0 z-0 overflow-hidden" />
+					<div
+						ref={maskEl}
+						className="pointer-events-none absolute top-0 z-[5] hidden border-l border-dashed border-zinc-400 bg-zinc-950"
+					/>
+					<div className="pointer-events-none absolute inset-0 z-10">
+						{pins.map((p, k) => (
+							<div
+								key={p.t + p.title}
+								ref={(el) => {
+									pinEls.current[k] = el;
+								}}
+								className="group pointer-events-auto absolute hidden -translate-x-1/2 hover:z-30 -translate-y-full text-amber-500"
+							>
+								<button
+									type="button"
+									onClick={() => centerOn(chart.current, interval, p.t)}
+									className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-zinc-950 ring-2 ring-zinc-950"
+								>
+									{p.n}
+								</button>
+								<div className="mx-auto h-2.5 w-px bg-current opacity-70" />
+								<div
+									className={`${CARD} pointer-events-none bottom-[calc(100%+6px)]`}
+								>
+									<div className="font-semibold">{p.title}</div>
+									<Stamp t={p.t} dayOnly={!isIntraday} />
+									<div className="text-zinc-300">{p.detail}</div>
+									{outcome(p.t)}
+								</div>
+							</div>
+						))}
+					</div>
 				</div>
 			</div>
 
-			<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
-				{isIntraday && (
-					<>
-						<span>
-							<i className="mr-1.5 inline-block size-2.5 rounded-full bg-violet-400" />
-							News story (number = stories that minute)
-						</span>
-						<span>
-							<i className="mr-1.5 inline-block size-2.5 rounded-full bg-sky-400" />
-							Telem post (large = first)
-						</span>
-						<span>
-							<i className="mr-1.5 inline-block h-2.5 w-3.5 rounded-sm bg-red-500/25" />
-							First alert to open: loss you could avoid
-						</span>
-						<span>
-							<i className="mr-1.5 inline-block h-2.5 w-3.5 rounded-sm bg-emerald-500/25" />
-							Low to rebound: buy-the-dip window
-						</span>
-					</>
-				)}
-				<span>
-					<i className="mr-1.5 inline-block size-2.5 rounded-full bg-amber-500" />
-					{isIntraday ? "Price event" : "Timeline event"} (click to center)
-				</span>
-			</div>
+			{isIntraday && (
+				<Feed
+					feed={feed}
+					bars={bars}
+					cursor={cursor}
+					playing={playing}
+					onJump={jump}
+				/>
+			)}
 			{isIntraday && (
 				<p className="mt-2 text-xs text-zinc-500">
 					Pre-market trading is thin with wide spreads, so "loss avoided" uses
@@ -818,8 +1194,9 @@ function AlertReplay() {
 				<>
 					<h2 className="mt-8 text-lg font-semibold">Who moved first</h2>
 					<p className="mt-1 text-sm text-zinc-400">
-						Price vs. the first news story and the first Telem post. Click a row
-						to center the chart on it.
+						Price vs. the first Telem or Tavily hit (tagged with the move, or
+						the earliest from 15 min before it to 24 h after). Click a row to
+						center the chart on it.
 					</p>
 					<div className="mt-3 overflow-x-auto">
 						<table className="w-full min-w-[720px] text-left text-sm">
@@ -827,37 +1204,53 @@ function AlertReplay() {
 								<tr className="border-b border-zinc-800">
 									<th className="py-2 pr-4 font-medium">Price move</th>
 									<th className="py-2 pr-4 font-medium">Price moved (ET)</th>
-									<th className="py-2 pr-4 font-medium">First news (ET)</th>
 									<th className="py-2 pr-4 font-medium">
-										First Telem post (ET)
+										First hit (source, ET)
 									</th>
 									<th className="py-2 font-medium">Gap</th>
 								</tr>
 							</thead>
 							<tbody>
-								{leadLag.map((r) => (
-									<tr
-										key={r.move + r.price}
-										onClick={() => centerOn(chart.current, interval, r.t)}
-										className="cursor-pointer border-b border-zinc-900 hover:bg-zinc-900/60"
-									>
-										<td className="py-2 pr-4">{r.move}</td>
-										<td className="py-2 pr-4 font-mono text-zinc-300">
-											{r.price}
-										</td>
-										<td className="py-2 pr-4 font-mono text-violet-300">
-											{r.news}
-										</td>
-										<td className="py-2 pr-4 font-mono text-sky-300">
-											{r.telem}
-										</td>
-										<td
-											className={`py-2 ${r.good ? "text-emerald-400" : "text-red-400"}`}
+								{leadLag.map((r) => {
+									const gap = r.hit ? r.hit.t - r.start : null;
+									return (
+										<tr
+											key={r.id}
+											onClick={() => centerOn(chart.current, interval, r.start)}
+											className="cursor-pointer border-b border-zinc-900 hover:bg-zinc-900/60"
 										>
-											{r.gap}
-										</td>
-									</tr>
-								))}
+											<td className="py-2 pr-4">{r.move}</td>
+											<td className="py-2 pr-4 font-mono text-zinc-300">
+												{fmtDayMin.format(r.start * 1000)}
+											</td>
+											<td className="py-2 pr-4">
+												{r.hit ? (
+													<>
+														<span className="font-mono text-zinc-200">
+															{when(r.hit)}
+														</span>{" "}
+														<span className={viaOf(r.hit.via).text}>
+															{r.hit.row}
+														</span>
+													</>
+												) : (
+													<span className="text-zinc-500">None</span>
+												)}
+											</td>
+											<td
+												className={`py-2 ${gap !== null && gap <= 60 ? "text-emerald-400" : "text-red-400"}`}
+											>
+												{gap === null
+													? "Missed: nothing within 24 h"
+													: Math.abs(gap) < 60
+														? "Same minute as the move"
+														: gap < 0
+															? `${duration(gap)} before the move`
+															: `${duration(gap)} after the move`}
+											</td>
+										</tr>
+									);
+								})}
 							</tbody>
 						</table>
 					</div>
@@ -892,47 +1285,146 @@ function AlertReplay() {
 	);
 }
 
+// Play-mode feed: items in the order the cursor reached them, each with the price move since.
+function Feed({
+	feed,
+	bars,
+	cursor,
+	playing,
+	onJump,
+}: {
+	feed: { it: Item; i: number }[];
+	bars: Bar[];
+	cursor: number | null;
+	playing: boolean;
+	onJump: (i: number) => void;
+}) {
+	const now = cursor === null ? undefined : bars[cursor];
+	return (
+		<div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-900/40">
+			<div className="flex items-baseline justify-between border-b border-zinc-800 px-3 py-2 text-xs">
+				<span className="font-medium text-zinc-200">Replay feed</span>
+				<span className="text-zinc-500">
+					{cursor === null
+						? "Press Play to walk the timeline from the left edge of the chart"
+						: `${feed.length} item${feed.length === 1 ? "" : "s"} so far${playing ? "" : " · paused"} · click one to jump`}
+				</span>
+			</div>
+			{feed.length > 0 && (
+				<ol className="max-h-72 overflow-y-auto">
+					{feed.slice(0, 200).map(({ it, i }, k) => {
+						// Acted on at the close of the next full bar, measured to the cursor bar.
+						const entry =
+							cursor !== null && i + 1 <= cursor ? bars[i + 1] : null;
+						return (
+							<li key={`${it.url}-${it.t}-${it.provider}`}>
+								<button
+									type="button"
+									onClick={() => onJump(i)}
+									className={`grid w-full grid-cols-[150px_minmax(0,1fr)_230px] items-baseline gap-3 border-b border-zinc-800/60 px-3 py-1.5 text-left text-xs hover:bg-zinc-800/50 ${k === 0 ? "bg-zinc-800/70 ring-1 ring-inset ring-emerald-500/50" : ""}`}
+								>
+									<span className="font-mono text-zinc-300">{when(it)} ET</span>
+									<span className="min-w-0 truncate text-zinc-300">
+										<i
+											className={`mr-1.5 inline-block size-2 rounded-full ${viaOf(it.via).dot}`}
+										/>
+										<span className="font-semibold text-zinc-100">
+											{it.row}
+										</span>{" "}
+										· {it.title}
+									</span>
+									<span className="text-right font-mono">
+										{entry && now ? (
+											<>
+												<Pct v={pct(now.close, entry.close)} />{" "}
+												<span className="text-zinc-500">
+													since ${entry.close.toFixed(2)} (
+													{fmtTime.format(entry.time * 1000)})
+												</span>
+											</>
+										) : (
+											<span className="text-zinc-500">next bar pending</span>
+										)}
+									</span>
+								</button>
+							</li>
+						);
+					})}
+				</ol>
+			)}
+		</div>
+	);
+}
+
 function Dot({
 	ref,
 	items,
-	color,
+	pulse,
+	onJump,
 	outcome,
 }: {
 	ref: (el: HTMLDivElement | null) => void;
 	items: Item[];
-	color: "sky" | "violet";
+	pulse: boolean;
+	onJump?: () => void;
 	outcome: React.ReactNode;
 }) {
-	const first = items[0].t === FIRST_ALERT;
+	const first = FIRST_ALERT !== undefined && items.includes(FIRST_ALERT);
 	const big = first || items.length > 1;
-	const fill =
-		color === "violet" ? "bg-violet-400" : first ? "bg-sky-300" : "bg-sky-400";
+	const c = viaOf(items[0].via);
+	const fill = first ? c.first : c.dot;
 	return (
 		<div
 			ref={ref}
-			className="group absolute top-0 hidden h-7 w-3 -translate-x-1/2 hover:z-30"
+			className="group absolute top-0 hidden h-8 w-3 -translate-x-1/2 hover:z-30"
 		>
+			{pulse && (
+				<span
+					key={items.at(-1)?.url}
+					className={`pointer-events-none absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full [animation-iteration-count:3] ${c.dot}`}
+				/>
+			)}
 			<a
 				href={items[0].url}
 				target="_blank"
 				rel="noreferrer"
-				className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold text-zinc-950 ring-2 ring-zinc-900 ${big ? "size-4" : "size-2.5"} ${fill}`}
+				onClick={(e) => {
+					if (!onJump) return;
+					e.preventDefault();
+					onJump();
+				}}
+				className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold text-zinc-950 ring-2 ${pulse ? "ring-zinc-100" : "ring-zinc-900"} ${big ? "size-4" : "size-2.5"} ${fill}`}
 			>
 				{items.length > 1 ? items.length : ""}
 				<span className="sr-only">{items[0].title}</span>
 			</a>
-			<div className={`${CARD} top-[calc(100%+6px)]`}>
+			{/* Hoverable (not pointer-events-none) so its links work; ::before bridges the gap. */}
+			<div
+				className={`${CARD} pointer-events-auto top-[calc(100%+6px)] before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-['']`}
+			>
 				{first && (
-					<div className="font-semibold text-sky-300">
-						Telem's first post on the resignation
+					<div className={`font-semibold ${c.text}`}>
+						First hit on the resignation
 					</div>
 				)}
 				{items.slice(0, 4).map((it) => (
 					<div key={it.url} className="mt-1 first:mt-0">
-						<Stamp t={it.t} minute={it.minute} />
+						<Stamp
+							t={it.t}
+							minute={it.precision === "minute"}
+							dayOnly={it.precision === "day"}
+						/>
 						<div className="text-zinc-300">
-							<span className="font-semibold text-zinc-100">{it.source}</span> ·{" "}
-							{it.title}
+							<span className="font-semibold text-zinc-100">{it.row}</span> ·{" "}
+							{it.title}{" "}
+							<a
+								href={it.url}
+								target="_blank"
+								rel="noreferrer"
+								className="text-sky-400 underline hover:text-sky-300"
+							>
+								Open
+							</a>
 						</div>
 					</div>
 				))}
@@ -942,46 +1434,5 @@ function Dot({
 				{outcome}
 			</div>
 		</div>
-	);
-}
-
-// TradingView's free Advanced Chart widget: Cboe One delayed data, 1-minute bars at the finest.
-function TradingViewWidget() {
-	const box = useRef<HTMLDivElement>(null);
-	useEffect(() => {
-		const el = box.current;
-		if (!el) return;
-		const s = document.createElement("script");
-		s.src =
-			"https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-		s.async = true;
-		s.innerHTML = JSON.stringify({
-			symbol: "NASDAQ:NVDA",
-			interval: "1",
-			timezone: TZ,
-			theme: "dark",
-			style: "1",
-			locale: "en",
-			autosize: true,
-			allow_symbol_change: false,
-			hide_side_toolbar: false,
-		});
-		el.appendChild(s);
-		return () => {
-			el.innerHTML = "";
-		};
-	}, []);
-	return (
-		<section className="mt-4">
-			<div className="h-[600px] overflow-hidden rounded-lg border border-zinc-800">
-				<div ref={box} className="tradingview-widget-container h-full" />
-			</div>
-			<p className="mt-2 text-xs text-zinc-500">
-				TradingView's free embed: their drawing tools and indicators on Cboe One
-				delayed data (one exchange group, not full-market volume). Its finest
-				interval is 1 minute; seconds need a paid plan on tradingview.com. It
-				cannot show our event markers.
-			</p>
-		</section>
 	);
 }

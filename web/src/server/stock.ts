@@ -111,21 +111,3 @@ export const getBars = createServerFn({ method: "GET" })
 	.handler(async ({ data }) =>
 		JSON.stringify(await load(data.symbol, data.interval)),
 	);
-
-// Telem posts about the event, slimmed for the chart's post strip: t = UTC seconds.
-export type Post = { t: number; platform: string; title: string; url: string };
-
-export const getPosts = createServerFn({ method: "GET" }).handler(
-	async (): Promise<Post[]> => {
-		const { default: data } = await import("#/data/jensen-huang-posts.json");
-		return data.posts
-			.filter((p) => p.relevant && p.date)
-			.map((p) => ({
-				t: Math.floor(Date.parse(p.date as string) / 1000),
-				platform: p.platform,
-				title: p.title_en || p.title || "Untitled post",
-				url: p.url,
-			}))
-			.sort((a, b) => a.t - b.t);
-	},
-);
