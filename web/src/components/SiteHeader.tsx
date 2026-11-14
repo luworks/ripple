@@ -7,6 +7,7 @@ const nav = [
 	{ to: "/telem", label: "Telem" },
 	{ to: "/tavily", label: "Tavily" },
 	{ to: "/stock/nvda", label: "NVDA" },
+	{ to: "/agent-memory", label: "Agent Memory" },
 ] as const;
 
 export function SiteHeader() {

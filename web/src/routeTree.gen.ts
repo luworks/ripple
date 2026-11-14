@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgentMemoryRouteImport } from './routes/agent-memory'
 import { Route as TavilyRouteImport } from './routes/tavily'
 import { Route as TelemRouteImport } from './routes/telem'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
@@ -22,6 +23,11 @@ import { Route as ApiResearchIdEventsRouteImport } from './routes/api/research/$
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentMemoryRoute = AgentMemoryRouteImport.update({
+  id: '/agent-memory',
+  path: '/agent-memory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TavilyRoute = TavilyRouteImport.update({
@@ -67,6 +73,7 @@ const ApiResearchIdEventsRoute = ApiResearchIdEventsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent-memory': typeof AgentMemoryRoute
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent-memory': typeof AgentMemoryRoute
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent-memory': typeof AgentMemoryRoute
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agent-memory'
     | '/tavily'
     | '/telem'
     | '/events/jensen-huang'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agent-memory'
     | '/tavily'
     | '/telem'
     | '/events/jensen-huang'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/agent-memory'
     | '/tavily'
     | '/telem'
     | '/events/jensen-huang'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentMemoryRoute: typeof AgentMemoryRoute
   TavilyRoute: typeof TavilyRoute
   TelemRoute: typeof TelemRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-memory': {
+      id: '/agent-memory'
+      path: '/agent-memory'
+      fullPath: '/agent-memory'
+      preLoaderRoute: typeof AgentMemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tavily': {
@@ -217,6 +237,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentMemoryRoute: AgentMemoryRoute,
   TavilyRoute: TavilyRoute,
   TelemRoute: TelemRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
