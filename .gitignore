@@ -233,3 +233,9 @@ __marimo__/
 .env.*
 !.env.example
 .dev.vars*
+
+# Public mirror: scraped data snapshots and media are private and not published
+web/public/media/
+web/public/avatar-*.webp
+web/src/data/*.json
+!web/src/data/jensen-huang-scan-plan.json

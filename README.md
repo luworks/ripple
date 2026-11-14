@@ -2,6 +2,11 @@
 
 Hackathon project.
 
+> Public code mirror. Scraped data snapshots (`web/src/data/*.json`), news media
+> (`web/public/media/`), databases and market data are private and not included, so
+> pages that read them need your own data. No credentials are stored in this repo;
+> everything is read from environment variables.
+
 ## Development
 
 Python tooling uses [uv](https://docs.astral.sh/uv/):
