@@ -4,7 +4,7 @@ import { RippleReplayView } from "#/components/ripple/RippleReplay";
 import { VenturePitch } from "#/components/VenturePitch";
 
 // Demo video: an .mp4 in web/public (e.g. "/demo.mp4") or a YouTube/Loom embed URL.
-const DEMO_VIDEO_SRC = "";
+const DEMO_VIDEO_SRC = "/demo.mp4";
 
 export const Route = createFileRoute("/")({
 	head: () => ({
@@ -186,7 +186,14 @@ function DemoVideo() {
 	if (DEMO_VIDEO_SRC.endsWith(".mp4"))
 		return (
 			// biome-ignore lint/a11y/useMediaCaption: product demo, narration on screen
-			<video className={frame} src={DEMO_VIDEO_SRC} controls playsInline />
+			<video
+				className={frame}
+				src={DEMO_VIDEO_SRC}
+				poster="/demo-poster.jpg"
+				preload="none"
+				controls
+				playsInline
+			/>
 		);
 	if (DEMO_VIDEO_SRC)
 		return (
