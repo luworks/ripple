@@ -62,7 +62,15 @@ function ViewSwitcher({ current }: { current: View }) {
 								: "border-zinc-500 bg-zinc-800/80 group-hover:border-zinc-200 group-hover:bg-zinc-500"
 						}`}
 					/>
-					<span className="pointer-events-none absolute right-full mr-1 rounded-full border border-zinc-700 bg-zinc-900/95 px-2.5 py-1 text-xs whitespace-nowrap text-zinc-200 opacity-0 shadow-lg shadow-black/50 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+					{/* Labels stay visible so the dots read as a control: all three
+					    where the right margin has room (≥1400px), else the current one. */}
+					<span
+						className={`absolute right-full mr-1 rounded-full border bg-zinc-900/95 px-2.5 py-1 text-xs whitespace-nowrap shadow-lg shadow-black/50 transition ${
+							v === current
+								? "border-emerald-400/40 text-emerald-300"
+								: "pointer-events-none border-zinc-700 text-zinc-300 opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:text-zinc-100 group-focus-visible:opacity-100 min-[1400px]:pointer-events-auto min-[1400px]:opacity-100"
+						}`}
+					>
 						{VIEWS[v].label}
 					</span>
 				</Link>
