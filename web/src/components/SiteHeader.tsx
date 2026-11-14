@@ -10,6 +10,7 @@ const nav = [
 	{ to: "/agent-memory", label: "Agent Memory" },
 	{ to: "/telem", label: "Telem" },
 	{ to: "/tavily", label: "Tavily" },
+	{ to: "/pricing", label: "Pricing" },
 ] as const;
 
 const linkBase =
@@ -30,16 +31,17 @@ function Partner({
 			href={href}
 			target="_blank"
 			rel="noreferrer"
-			className="inline-flex items-center gap-1 text-zinc-300 hover:text-zinc-100"
+			title={name}
+			className="inline-flex items-center gap-2 text-sm font-medium text-zinc-200 hover:text-white"
 		>
 			<img
 				src={logo}
-				alt=""
-				width={14}
-				height={14}
-				className="h-3.5 w-3.5 rounded-[3px]"
+				alt={name}
+				width={36}
+				height={36}
+				className="h-9 w-9 rounded-lg"
 			/>
-			{name}
+			<span className="hidden xl:inline">{name}</span>
 		</a>
 	);
 }
@@ -69,50 +71,36 @@ export function SiteHeader() {
 						</Link>
 					))}
 				</nav>
-				<div className="ml-auto flex shrink-0 items-center gap-3">
-					<Link
-						to="/pricing"
-						onClick={() => setOpen(false)}
-						className={`${linkBase} px-3 py-1.5 text-sm`}
-						activeProps={linkActive}
-					>
-						Pricing
-					</Link>
-					<div className="hidden text-right leading-tight sm:block">
-						<div className="text-sm">
-							<span className="text-zinc-500">Built by </span>
-							<span className="font-medium">Yuan Lu</span>
-							<span className="text-zinc-500"> · sorastats on Discord</span>
-						</div>
-						<div className="mt-0.5 flex items-center justify-end gap-1.5 text-xs text-zinc-500">
+				<div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
+					<div className="flex items-center gap-2 sm:gap-3">
+						<span className="hidden text-xs leading-tight text-zinc-500 sm:block">
 							Powered by
-							<Partner
-								href="https://telem.ai"
-								logo="/logos/telem.svg"
-								name="Telem"
-							/>
-							and
-							<Partner
-								href="https://tavily.com"
-								logo="/logos/tavily.svg"
-								name="Tavily"
-							/>
-						</div>
+						</span>
+						<Partner
+							href="https://telem.ai"
+							logo="/logos/telem.svg"
+							name="Telem"
+						/>
+						<Partner
+							href="https://tavily.com"
+							logo="/logos/tavily.svg"
+							name="Tavily"
+						/>
 					</div>
-					<div className="flex -space-x-3">
+					<span className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+					<div className="flex items-center gap-2">
+						<span className="text-right text-xs leading-tight text-zinc-500">
+							Built by
+							<span className="block text-sm font-medium text-zinc-100">
+								Yuan Lu
+							</span>
+						</span>
 						<img
 							src="/avatar-discord.webp"
-							alt="sorastats Discord avatar"
+							alt="Yuan Lu's Discord avatar"
 							width={36}
 							height={36}
-							className="h-9 w-9 rounded-full object-cover ring-2 ring-zinc-950"
-						/>
-						<img
-							src="/avatar-yuan.webp"
-							alt="Yuan Lu"
-							width={36}
-							height={36}
-							className="h-9 w-9 rounded-full object-cover ring-2 ring-zinc-950"
+							className="h-9 w-9 rounded-full object-cover"
 						/>
 					</div>
 					<button
