@@ -3,8 +3,7 @@ import { BRAND } from "#/brand";
 import { RippleReplayView } from "#/components/ripple/RippleReplay";
 import { VenturePitch } from "#/components/VenturePitch";
 
-// Demo video: an .mp4 in web/public (e.g. "/demo.mp4") or a YouTube/Loom embed URL.
-const DEMO_VIDEO_SRC = "/demo.mp4";
+const DEMO_VIDEO_SRC = "https://www.youtube.com/embed/JKNQoKueTxY";
 
 export const Route = createFileRoute("/")({
 	head: () => ({
@@ -181,38 +180,15 @@ function TelemStages() {
 }
 
 function DemoVideo() {
-	const frame =
-		"aspect-video w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900";
-	if (DEMO_VIDEO_SRC.endsWith(".mp4"))
-		return (
-			// biome-ignore lint/a11y/useMediaCaption: product demo, narration on screen
-			<video
-				className={frame}
-				src={DEMO_VIDEO_SRC}
-				poster="/demo-poster.jpg"
-				preload="none"
-				controls
-				playsInline
-			/>
-		);
-	if (DEMO_VIDEO_SRC)
-		return (
-			<iframe
-				className={frame}
-				src={DEMO_VIDEO_SRC}
-				title={`${BRAND} demo`}
-				allowFullScreen
-			/>
-		);
 	return (
-		<div
-			className={`${frame} flex flex-col items-center justify-center gap-3 border-dashed`}
-		>
-			<span className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-700 text-xl text-zinc-400">
-				▶
-			</span>
-			<span className="text-sm text-zinc-500">Demo video · coming soon</span>
-		</div>
+		<iframe
+			className="aspect-video w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
+			src={DEMO_VIDEO_SRC}
+			title={`${BRAND} demo`}
+			allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+			referrerPolicy="strict-origin-when-cross-origin"
+			allowFullScreen
+		/>
 	);
 }
 
