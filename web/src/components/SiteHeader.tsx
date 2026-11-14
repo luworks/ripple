@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 const nav = [
 	{ to: "/", label: "Home" },
 	{ to: "/events/jensen-huang", label: "Jensen Huang event" },
+	{ to: "/telem", label: "Telem" },
 ] as const;
 
 export function SiteHeader() {
