@@ -135,30 +135,6 @@ export const PRODUCT_SHORT = [
 	"Benzinga Pro",
 ];
 
-const SEATS = 325_000;
-export const SIZING = [
-	{
-		label: "Professional terminal seats",
-		note: "Bloomberg Terminal subscribers, a proxy for paid market-data users",
-		value: "325,000",
-	},
-	{
-		label: "× Desk plan per year",
-		note: `$${DESK_MO} a month, sold as the second screen next to the Terminal`,
-		value: `$${(DESK_MO * 12).toLocaleString("en-US")}`,
-	},
-	{
-		label: "= Seat market",
-		note: "Before metered API revenue from quant and risk teams",
-		value: `$${Math.round((SEATS * DESK_MO * 12) / 1e6)}M / yr`,
-	},
-	{
-		label: "Market-data spend, 2025",
-		note: "Burton-Taylor, global, +6.5% a year",
-		value: "$49.2B",
-	},
-];
-
 export const SOURCES = [
 	{
 		label: "Bloomberg price (NeuGroup, 2024)",
