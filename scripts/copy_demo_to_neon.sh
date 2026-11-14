@@ -26,6 +26,7 @@ urls=$(source_psql -c 'select count(*) from hackathon_agent_data.demo_urls')
   cat <<'SQL'
 BEGIN;
 CREATE SCHEMA hackathon_agent_data;
+SET LOCAL search_path = hackathon_agent_data;
 CREATE TABLE hackathon_agent_data.demo_events (
   id bigint, ts timestamptz, machine text, agent text, event_type text,
   tool text, model text, outcome text, session_key text, query_text text,
@@ -35,8 +36,9 @@ CREATE TABLE hackathon_agent_data.demo_urls (
   id bigint, event_id bigint, occurrence_kind text, occurrence_ordinal bigint,
   host text, reg_domain text, display_url text, url_hidden boolean
 );
-COPY hackathon_agent_data.demo_events FROM STDIN;
 SQL
+  sed -n '/^CREATE OR REPLACE FUNCTION demo_text_unsafe(/,/^\$\$;/p' "$(dirname "$0")/../db/agent-memory/demo-safe.sql"
+  printf 'COPY hackathon_agent_data.demo_events FROM STDIN;\n'
   source_psql -c 'COPY hackathon_agent_data.demo_events TO STDOUT'
   printf '\\.\n'
   printf 'COPY hackathon_agent_data.demo_urls FROM STDIN;\n'

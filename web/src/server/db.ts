@@ -6,6 +6,11 @@ let sql: postgres.Sql | undefined;
 export function db() {
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new Error("DATABASE_URL is not set");
-	sql ??= postgres(url, { max: 10, idle_timeout: 30, connect_timeout: 5 });
+	sql ??= postgres(url, {
+		max: 10,
+		idle_timeout: 30,
+		connect_timeout: 5,
+		prepare: false,
+	});
 	return sql;
 }

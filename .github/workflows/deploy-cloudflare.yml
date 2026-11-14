@@ -39,7 +39,7 @@ jobs:
           const { spawnSync } = require('node:child_process');
           const u = new URL(process.env.PGDATABASE);
           const env = { ...process.env, PGHOST: u.hostname, PGPORT: u.port || '5432', PGUSER: decodeURIComponent(u.username), PGPASSWORD: decodeURIComponent(u.password), PGDATABASE: decodeURIComponent(u.pathname.slice(1)), PGSSLMODE: u.searchParams.get('sslmode') || 'require' };
-          const sql = "select to_regclass('hackathon_agent_data.demo_events') is not null and to_regclass('hackathon_agent_data.demo_urls') is not null";
+          const sql = "select to_regclass('hackathon_agent_data.demo_events') is not null and to_regclass('hackathon_agent_data.demo_urls') is not null and to_regprocedure('hackathon_agent_data.demo_text_unsafe(text)') is not null";
           const result = spawnSync('psql', ['-X', '-At', '-c', sql], { env, encoding: 'utf8' });
           if (result.status !== 0 || result.stdout.trim() !== 't') throw Error('Demo snapshot is unavailable');
           console.log('Demo snapshot is available');
