@@ -10,7 +10,14 @@
 //   3.6 page fetches add ~$0.01. Call it $0.09.
 // - +10% for retries and failed runs. Total ~$0.22. Cached briefs cost ~$0.
 export const RUN_COST = 0.22;
-export const RUN_SECONDS = 56; // median of 43 runs; p90 92 s
+// Run count and timing: every finished real run in research_runs, measured Nov 14, 2026 14:30 PT:
+//   select count(*), percentile_disc(0.5) within group (order by duration_ms),
+//     percentile_disc(0.9) within group (order by duration_ms) from research_runs
+//   where status = 'done' and events @> '[{"text": "Starting agent container"}]';
+//   -> 89 runs, median 40.8 s, p90 83.1 s. Cache hits are not runs and are not counted.
+export const RUN_COUNT = 89;
+export const RUN_SECONDS = 41;
+export const RUN_P90_SECONDS = 83;
 // Price = cost / (1 - 60% margin), after card fees (2.9% + $0.30).
 export const RUN_PRICE = 0.55;
 export const PRO_MO = 49;
@@ -78,7 +85,7 @@ export const MATRIX: { label: string; cells: string[] }[] = [
 		cells: ["yes", "2-year contract", "Quote", "Quote", "yes"],
 	},
 	{
-		label: "Type a headline, get a sourced brief in about a minute",
+		label: "Type a headline, get a sourced brief in under a minute",
 		cells: [`${RUN_SECONDS} s median`, "—", "—", "—", "—"],
 	},
 	{

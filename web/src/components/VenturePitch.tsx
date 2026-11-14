@@ -4,6 +4,7 @@ import {
 	PRO_MO,
 	REASONS,
 	RUN_COST,
+	RUN_COUNT,
 	RUN_SECONDS,
 	SIZING,
 	SOURCES,
@@ -145,7 +146,7 @@ export function VenturePitch() {
 							<b className="font-medium text-[var(--ink)]">
 								Agents got cheap enough to run per headline.
 							</b>{" "}
-							Across 43 runs: {RUN_SECONDS} seconds median and about $
+							Across {RUN_COUNT} runs: {RUN_SECONDS} seconds median and about $
 							{RUN_COST.toFixed(2)} in model and search fees. The same headline
 							is cached for every customer after the first run.
 						</li>

@@ -7,9 +7,6 @@ const nav = [
 	{ to: "/events/jensen-huang", label: "Jensen Huang event" },
 	{ to: "/stock/nvda", label: "NVDA" },
 	{ to: "/research", label: "Research" },
-	{ to: "/agent-memory", label: "Agent Memory" },
-	{ to: "/telem", label: "Telem" },
-	{ to: "/tavily", label: "Tavily" },
 	{ to: "/pricing", label: "Pricing" },
 ] as const;
 

@@ -33,7 +33,7 @@ function Home() {
 								<span className="text-sky-400">Every ripple.</span>
 							</h1>
 							<p className="max-w-xl text-lg leading-relaxed text-zinc-400">
-								Type a market-moving event. In about a minute you get the
+								Type a market-moving event. In under a minute you get the
 								people, the exposed tickers, a minute-level timeline and the
 								chatter from X, Reddit and Chinese social platforms via Telem,
 								every claim linked to its source.

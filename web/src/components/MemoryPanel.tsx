@@ -36,6 +36,16 @@ export function MemoryPanel({
 	const calls = events.filter(
 		(e) => e.kind === "tool" && SEARCH.test(e.text),
 	).length;
+	// A match that supplied no sources saved nothing; don't compare it against a typical run.
+	if (!reused)
+		return (
+			<p className="rounded-2xl border border-zinc-800 px-5 py-3 text-sm text-zinc-400">
+				<span className="font-medium text-emerald-400">Memory</span> · closest
+				earlier run was “{m.runs[0].query}” (match{" "}
+				{m.runs[0].similarity.toFixed(2)}), but none of its sources fit this
+				event, so the agent searched from scratch.
+			</p>
+		);
 	const b = m.baseline;
 	const less = (now: number, typical: number) =>
 		typical > 0 ? Math.round((1 - now / typical) * 100) : null;
