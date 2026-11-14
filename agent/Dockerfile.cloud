@@ -1,0 +1,4 @@
+FROM brain0-agent
+COPY --chown=agent:agent http-server.mjs /work/http-server.mjs
+EXPOSE 8080
+ENTRYPOINT ["node", "/work/http-server.mjs"]

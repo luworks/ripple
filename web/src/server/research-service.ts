@@ -14,7 +14,11 @@ import type { AgentEvent, ResearchResult } from "./research-types";
 
 export const MAX_QUERY_LEN = 300;
 // Each agent container idles ~150 MB waiting on the network; 8 lets several demo viewers run at once.
-const MAX_CONCURRENT = 8;
+const configuredConcurrency = Number(process.env.RESEARCH_MAX_CONCURRENT ?? 8);
+const MAX_CONCURRENT =
+	Number.isSafeInteger(configuredConcurrency) && configuredConcurrency > 0
+		? configuredConcurrency
+		: 0;
 const CACHE_MS = 10 * 60 * 1000;
 
 export type LiveMessage =

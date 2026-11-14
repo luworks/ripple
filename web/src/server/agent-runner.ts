@@ -162,6 +162,8 @@ export function runResearch(
 	onEvent: (e: AgentEvent) => void,
 	signal?: AbortSignal,
 ): Promise<RunOutcome> {
+	if (process.env.AGENT_ENDPOINT)
+		return runRemoteResearch(query, onEvent, signal);
 	const started = Date.now();
 	const name = `brain0-agent-${randomUUID().slice(0, 8)}`;
 	const env: Record<string, string> = { PATH: process.env.PATH ?? "" };
@@ -252,4 +254,75 @@ export function runResearch(
 		});
 		child.on("close", finish);
 	});
+}
+
+async function runRemoteResearch(
+	query: string,
+	onEvent: (e: AgentEvent) => void,
+	signal?: AbortSignal,
+): Promise<RunOutcome> {
+	const started = Date.now();
+	const token = process.env.AGENT_INTERNAL_TOKEN;
+	if (!token || !process.env.AGENT_ENDPOINT)
+		return {
+			ok: false,
+			error: "Agent service is not configured",
+			durationMs: 0,
+		};
+	let result: ResearchResult | undefined;
+	let usage: { inputTokens: number; outputTokens: number } | undefined;
+	let lastError = "";
+	onEvent({
+		at: new Date().toISOString(),
+		kind: "status",
+		text: "Starting agent container",
+	});
+	try {
+		const timeout = AbortSignal.timeout(TIMEOUT_MS);
+		const response = await fetch(process.env.AGENT_ENDPOINT, {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${token}`,
+				"content-type": "application/json",
+			},
+			body: JSON.stringify({ query }),
+			signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+		});
+		if (!response.ok || !response.body)
+			throw new Error(`Agent service returned ${response.status}`);
+		const lines = createInterface({
+			input: (await import("node:stream")).Readable.fromWeb(
+				response.body as import("node:stream/web").ReadableStream,
+			),
+		});
+		for await (const line of lines) {
+			let event: CodexEvent;
+			try {
+				event = JSON.parse(line);
+			} catch {
+				continue;
+			}
+			if (event.type === "brain0.result" && event.result) result = event.result;
+			if (event.type === "brain0.error")
+				lastError = `Agent exited with code ${event.exit_code ?? "unknown"}`;
+			if (event.type === "turn.completed" && event.usage)
+				usage = {
+					inputTokens: event.usage.input_tokens ?? 0,
+					outputTokens: event.usage.output_tokens ?? 0,
+				};
+			const mapped = toEvent(event);
+			if (mapped) onEvent(mapped);
+			if (
+				mapped?.kind === "error" &&
+				(event.type === "error" || event.type === "turn.failed")
+			)
+				lastError = mapped.text;
+		}
+	} catch (error) {
+		lastError = error instanceof Error ? error.message : "Agent request failed";
+	}
+	const durationMs = Date.now() - started;
+	return result
+		? { ok: true, result, durationMs, usage }
+		: { ok: false, error: lastError || "Agent returned no result", durationMs };
 }

@@ -12,7 +12,7 @@ const BAND = 0.05; // keep only runs within this of the best match
 const MAX_RUNS = 3;
 const MAX_ITEMS = 15;
 const MAX_CANDIDATES = 200;
-const TEST_RUN = "\\m(test|fail)\\M.*\\d{4,}\\s*$";
+const TEST_RUN = "(^QA([[:space:]]|:)|\\m(test|fail)\\M.*\\d{4,}\\s*$)";
 const SEARCH_TOOL = "^(tavily|telem|telem_hack)\\.";
 // Only real agent runs: the Docker runner always emits this event.
 const REAL = [{ text: "Starting agent container" }];

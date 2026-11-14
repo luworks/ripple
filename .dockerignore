@@ -1,0 +1,7 @@
+**/.env
+**/.env.*
+**/node_modules
+**/.git
+**/.cloudflare
+**/.output
+**/.DS_Store

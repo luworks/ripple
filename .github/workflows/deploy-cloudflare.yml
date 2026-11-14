@@ -1,0 +1,75 @@
+name: Deploy search website
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: brain0-search-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install pnpm
+        run: npm install --global pnpm@12.16.1
+      - name: Check application
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web exec tsc --noEmit
+          node --test agent/http-server.test.mjs
+      - name: Fetch market snapshot
+        run: uv run scripts/fetch_stock.py NVDA data/market
+      - name: Build isolated research agent
+        run: docker build -t brain0-agent agent
+      - name: Install Cloudflare dependencies
+        run: pnpm --dir cloud install --frozen-lockfile
+      - name: Verify database snapshot
+        env:
+          PGDATABASE: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require('node:child_process');
+          const u = new URL(process.env.PGDATABASE);
+          const env = { ...process.env, PGHOST: u.hostname, PGPORT: u.port || '5432', PGUSER: decodeURIComponent(u.username), PGPASSWORD: decodeURIComponent(u.password), PGDATABASE: decodeURIComponent(u.pathname.slice(1)), PGSSLMODE: u.searchParams.get('sslmode') || 'require' };
+          const sql = "select to_regclass('hackathon_agent_data.demo_events') is not null and to_regclass('hackathon_agent_data.demo_urls') is not null";
+          const result = spawnSync('psql', ['-X', '-At', '-c', sql], { env, encoding: 'utf8' });
+          if (result.status !== 0 || result.stdout.trim() !== 't') throw Error('Demo snapshot is unavailable');
+          console.log('Demo snapshot is available');
+          NODE
+      - name: Write short-lived deployment secrets file
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEM_HACK_API_KEY: ${{ secrets.TELEM_HACK_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          AGENT_INTERNAL_TOKEN: ${{ secrets.BRAIN0_AGENT_INTERNAL_TOKEN }}
+          SITE_PASSWORD: ${{ secrets.BRAIN0_SITE_PASSWORD }}
+          PUBLIC_ORIGIN: https://search.chaorders.com
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const names = ['DATABASE_URL', 'OPENAI_API_KEY', 'TELEM_HACK_API_KEY', 'TAVILY_API_KEY', 'AGENT_INTERNAL_TOKEN', 'SITE_PASSWORD', 'PUBLIC_ORIGIN'];
+          for (const name of names) if (!process.env[name]) throw Error(`Missing ${name}`);
+          fs.writeFileSync(process.env.RUNNER_TEMP + '/brain0-secrets.json', JSON.stringify(Object.fromEntries(names.map(k => [k, process.env[k]]))), {mode: 0o600});
+          NODE
+      - name: Build and deploy
+        working-directory: cloud
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
+          CF_ATTACH_DOMAIN: '1'
+        run: pnpm exec cf deploy --secrets-file "$RUNNER_TEMP/brain0-secrets.json"
+      - name: Roll out the current web image
+        working-directory: cloud
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
+        run: node rollout-web.mjs

@@ -1,0 +1,16 @@
+FROM node:26-bookworm-slim AS build
+RUN npm install --global pnpm@11.28.2
+WORKDIR /src/web
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY web/ ./
+RUN pnpm build
+
+FROM node:26-bookworm-slim
+WORKDIR /app/web
+ENV NODE_ENV=production PORT=8080 HOST=0.0.0.0
+COPY --from=build /src/web/.output ./.output
+COPY data/market /app/data/market
+USER node
+EXPOSE 8080
+CMD ["node", ".output/server/index.mjs"]
