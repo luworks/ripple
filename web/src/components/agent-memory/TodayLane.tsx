@@ -22,7 +22,7 @@ const ptHour = (iso: string) => {
 export const ENGINE_COLOR: Record<string, string> = {
 	Tavily: "bg-sky-400",
 	Telem: "bg-amber-400",
-	web: "bg-zinc-300",
+	web: "bg-zinc-400",
 };
 const LEGEND = [
 	["web", "Claude Code / Codex"],

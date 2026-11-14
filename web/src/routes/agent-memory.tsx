@@ -1,13 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { DailyStrip } from "#/components/agent-memory/DailyStrip";
+import { SearchChart } from "#/components/agent-memory/SearchChart";
 import { TodayLane } from "#/components/agent-memory/TodayLane";
-import { getStrata, getToday } from "#/server/agent-memory/strata";
+import {
+	getDetail,
+	getSeries,
+	getStrata,
+	getToday,
+} from "#/server/agent-memory/strata";
 
 export const Route = createFileRoute("/agent-memory")({
 	loader: async () => {
-		const [strata, today] = await Promise.all([getStrata(), getToday()]);
-		return { strata, today };
+		const [strata, series, detail, today] = await Promise.all([
+			getStrata(),
+			getSeries({ data: { grain: "day" } }),
+			getDetail({ data: { grain: "day" } }),
+			getToday(),
+		]);
+		return { strata, series, detail, today };
 	},
 	head: () => ({ meta: [{ title: "Agent Memory · brain0" }] }),
 	component: AgentMemory,
@@ -17,7 +27,7 @@ const fmt = new Intl.NumberFormat("en-US");
 const POLL_MS = 10_000;
 
 function AgentMemory() {
-	const { strata, today: initial } = Route.useLoaderData();
+	const { strata, series, detail, today: initial } = Route.useLoaderData();
 	const [today, setToday] = useState(initial);
 
 	// New research-agent searches land in Postgres as they run; poll to show them live.
@@ -30,7 +40,7 @@ function AgentMemory() {
 		return () => clearInterval(t);
 	}, []);
 
-	const first = new Date(`${strata.days[0].day}T12:00:00Z`).toLocaleDateString(
+	const first = new Date(`${strata.first}T12:00:00Z`).toLocaleDateString(
 		"en-US",
 		{ timeZone: "UTC", month: "long", day: "numeric" },
 	);
@@ -70,11 +80,16 @@ function AgentMemory() {
 					<div className="flex flex-col gap-3">
 						<Kicker>{`Since ${first}`}</Kicker>
 						<h2 className="text-3xl font-semibold tracking-tight">
-							Searches per day
+							Every search, over time
 						</h2>
+						<p className="max-w-2xl text-zinc-400">
+							Hover any bar to see where those searches went and what they
+							asked. Switch to hours or 15 minutes to watch today's Tavily and
+							Telem calls arrive.
+						</p>
 					</div>
 					<div className="rounded-2xl border border-zinc-800 p-6">
-						<DailyStrip days={strata.days} />
+						<SearchChart initial={series} initialDetail={detail} />
 					</div>
 				</section>
 
