@@ -35,6 +35,7 @@ export default defineConfig({
 			TAVILY_API_KEY: bindings.secret(),
 			AGENT_INTERNAL_TOKEN: bindings.secret(),
 			PUBLIC_ORIGIN: bindings.secret(),
+			VERSION: bindings.versionMetadata(),
 		},
 	},
 	containers: [web, agent],

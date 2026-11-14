@@ -13,6 +13,17 @@ export class WebContainer extends Container {
 		RESEARCH_DAILY_LIMIT: "10",
 		RESEARCH_MAX_CONCURRENT: "3",
 	};
+
+	// A deploy restarts this Durable Object but not its running container, so a
+	// container started by an older deploy would keep serving the old image.
+	constructor(ctx, env) {
+		super(ctx, env);
+		ctx.blockConcurrencyWhile(async () => {
+			const version = env.VERSION.id;
+			if (ctx.container.running && (await ctx.storage.get("deployVersion")) !== version) await ctx.container.destroy();
+			await ctx.storage.put("deployVersion", version);
+		});
+	}
 }
 
 export class AgentContainer extends Container {
