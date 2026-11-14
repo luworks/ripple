@@ -16,7 +16,8 @@ Type a market-moving headline. In under a minute: who's involved, which tickers 
 - Live site: https://search.chaorders.com
 - Run your own research: https://search.chaorders.com/research
 - Pricing and competitor comparison: https://search.chaorders.com/pricing
-- Code: https://github.com/luworks/brain0
+
+We submit the live site and the demo video only. No code link.
 
 ## Built with
 
@@ -143,4 +144,4 @@ Pro costs 1/54 of a Bloomberg Terminal seat ($2,665 a month).
 ## Before submitting
 
 - [ ] Demo video URL (the home page still shows "Demo video · coming soon").
-- [ ] Repo visibility: `luworks/brain0` is private. Make it public or add the judges, or drop the Code link.
+- [ ] The live site shows the current prices ($49, $199, $0.55 on /pricing; 1/54 and $776M on the home page).
