@@ -25,6 +25,8 @@ jobs:
           pnpm --dir web install --frozen-lockfile
           pnpm --dir web exec tsc --noEmit
           node --test agent/http-server.test.mjs
+      - name: Stamp deployed commit
+        run: echo "$GITHUB_SHA" > web/public/version.txt
       - name: Fetch market snapshot
         run: uv run scripts/fetch_stock.py NVDA data/market
       - name: Build isolated research agent
@@ -72,3 +74,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BRAIN0_DEPLOY_TOKEN }}
         run: node rollout-web.mjs
+      - name: Verify production serves this commit
+        run: |
+          for i in $(seq 1 36); do
+            live=$(curl -fsS "https://search.chaorders.com/version.txt?t=$(date +%s)" || true)
+            [ "$live" = "$GITHUB_SHA" ] && { echo "Production serves $GITHUB_SHA"; exit 0; }
+            sleep 5
+          done
+          echo "Production serves '${live}', expected $GITHUB_SHA"; exit 1
