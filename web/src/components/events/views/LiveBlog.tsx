@@ -29,8 +29,6 @@ const rail = [
 		major: e.major,
 		tag: e.tag,
 	})),
-	{ id: "social", label: "Social pulse", kicker: "Section" },
-	{ id: "method", label: "How Telem collected this", kicker: "Section" },
 ];
 
 export function LiveBlog() {

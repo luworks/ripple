@@ -10,12 +10,26 @@ export type RailItem = {
 	major?: boolean;
 };
 
+export type QuickLink = { id: string; label: string };
+
+/** Page sections that are not events: shown as labelled links below the rail, not as ticks. */
+export const SECTION_LINKS: QuickLink[] = [
+	{ id: "social", label: "Social pulse" },
+	{ id: "method", label: "How Telem searched" },
+];
+
 /**
  * Minimap-style scroll rail on the left edge, like the one in a T3 Code thread: one tick
  * per section, major events drawn longer in amber with an always-visible tag, a preview
  * card on hover, smooth jump on click, and the tick for the section in view highlighted.
  */
-export function ScrollRail({ items }: { items: RailItem[] }) {
+export function ScrollRail({
+	items,
+	links = SECTION_LINKS,
+}: {
+	items: RailItem[];
+	links?: QuickLink[];
+}) {
 	const [active, setActive] = useState(items[0]?.id);
 	const [hover, setHover] = useState<string | null>(null);
 
@@ -33,12 +47,12 @@ export function ScrollRail({ items }: { items: RailItem[] }) {
 			},
 			{ rootMargin: "-15% 0px -55% 0px" },
 		);
-		for (const i of items) {
+		for (const i of [...items, ...links]) {
 			const el = document.getElementById(i.id);
 			if (el) obs.observe(el);
 		}
 		return () => obs.disconnect();
-	}, [items]);
+	}, [items, links]);
 
 	const jump = (id: string) => {
 		document
@@ -109,6 +123,26 @@ export function ScrollRail({ items }: { items: RailItem[] }) {
 					);
 				})}
 			</ul>
+			{links.length > 0 && (
+				<ul className="mt-2 ml-1 flex flex-col gap-1 border-t border-zinc-800 pt-3">
+					{links.map((l) => (
+						<li key={l.id}>
+							<button
+								type="button"
+								aria-current={active === l.id ? "location" : undefined}
+								onClick={() => jump(l.id)}
+								className={`rounded-md px-2 py-1 text-xs whitespace-nowrap transition-colors ${
+									active === l.id
+										? "bg-emerald-400/10 text-emerald-300"
+										: "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+								}`}
+							>
+								{l.label} →
+							</button>
+						</li>
+					))}
+				</ul>
+			)}
 		</nav>
 	);
 }

@@ -45,8 +45,6 @@ const rail = [
 		major: d.events.some((e) => e.major),
 		tag: d.events[0].tag,
 	})),
-	{ id: "social", label: "Social pulse", kicker: "Section" },
-	{ id: "method", label: "How Telem collected this", kicker: "Section" },
 ];
 
 export function Magazine() {

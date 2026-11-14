@@ -77,6 +77,7 @@ export function TelemStrip() {
 	);
 }
 
+/** Compact post card: small thumbnail, platform/date/stance, English title only. */
 export function PostCard({
 	post: p,
 	withImage = true,
@@ -84,17 +85,16 @@ export function PostCard({
 	post: PostView;
 	withImage?: boolean;
 }) {
-	const original = p.language !== "en" && p.text;
 	return (
-		<article className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+		<article className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-3">
 			{withImage && p.image && (
 				<RemoteImage
 					src={p.image}
 					alt=""
-					className="aspect-[4/3] w-full bg-zinc-900 object-cover"
+					className="h-20 w-20 shrink-0 rounded-lg bg-zinc-900 object-cover"
 				/>
 			)}
-			<div className="flex flex-1 flex-col gap-3 p-4">
+			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
 					<span className="font-medium text-zinc-300">{p.platform}</span>
 					{p.date && (
@@ -103,33 +103,23 @@ export function PostCard({
 						</time>
 					)}
 					<span
-						className={`ml-auto rounded-full border px-2 py-0.5 ${STANCE[p.stance].badge}`}
+						className={`ml-auto rounded-full border px-2 py-px ${STANCE[p.stance].badge}`}
 					>
 						{STANCE[p.stance].label}
 					</span>
 				</div>
-				<h4 className="leading-snug font-medium">
+				<h4 className="line-clamp-2 text-sm leading-snug font-medium">
 					<a
 						href={p.url}
 						target="_blank"
 						rel="noreferrer"
+						title={p.summary_en}
 						className="hover:text-emerald-300"
 					>
 						{p.title_en}
 					</a>
 				</h4>
-				<p className="text-sm leading-relaxed text-zinc-400">{p.summary_en}</p>
-				{original && (
-					<details className="text-sm">
-						<summary className="cursor-pointer text-xs text-zinc-500 select-none hover:text-zinc-300">
-							Original ({p.language === "zh" ? "Chinese" : "source language"})
-						</summary>
-						<div className="mt-2 rounded-lg bg-zinc-900 p-3 leading-relaxed whitespace-pre-line break-words text-zinc-300">
-							{p.text}
-						</div>
-					</details>
-				)}
-				<div className="mt-auto border-t border-zinc-800/80 pt-3">
+				<div className="mt-auto">
 					<TelemCredits credits={p.credits} compact />
 				</div>
 			</div>
@@ -137,12 +127,38 @@ export function PostCard({
 	);
 }
 
+type Region = "global" | "china" | "all";
+const REGIONS: { id: Region; label: string }[] = [
+	{ id: "global", label: "Global" },
+	{ id: "china", label: "Chinese platforms" },
+	{ id: "all", label: "All regions" },
+];
+
+/** Platforms per region, most posts first, so every chip shows a real count. */
+function platformsIn(region: Region) {
+	const counts = new Map<string, number>();
+	for (const p of socialPosts)
+		if (region === "all" || p.category === region)
+			counts.set(p.platform, (counts.get(p.platform) ?? 0) + 1);
+	return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Social feed with three filter rows, applied in order:
+ * 1. Region: Global (default) or Chinese platforms, or both.
+ * 2. Platform: every social network in that region with its post count; one click narrows to it.
+ * 3. Stance and "With images" refine whatever the first two rows selected.
+ */
 export function SocialFeed({ columns = 3 }: { columns?: 2 | 3 }) {
-	const [category, setCategory] = useState<"all" | "china" | "global">("all");
+	const [region, setRegion] = useState<Region>("global");
+	const [platform, setPlatform] = useState<string | null>(null);
 	const [stance, setStance] = useState<"all" | Stance>("all");
 	const [withImages, setWithImages] = useState(false);
+	const platforms = platformsIn(region);
+	const inRegion = platforms.reduce((n, [, c]) => n + c, 0);
 	const list = socialPosts
-		.filter((p) => category === "all" || p.category === category)
+		.filter((p) => region === "all" || p.category === region)
+		.filter((p) => !platform || p.platform === platform)
 		.filter((p) => stance === "all" || p.stance === stance)
 		.filter((p) => !withImages || p.image)
 		.sort(
@@ -152,26 +168,46 @@ export function SocialFeed({ columns = 3 }: { columns?: 2 | 3 }) {
 		);
 	return (
 		<div>
-			<div className="mb-6 flex flex-wrap gap-2">
-				{(["all", "china", "global"] as const).map((c) => (
-					<Chip key={c} on={category === c} onClick={() => setCategory(c)}>
-						{c === "all"
-							? "All"
-							: c === "china"
-								? "Chinese platforms"
-								: "Global"}
+			<div className="mb-6 flex flex-col gap-3">
+				<FilterRow label="Region">
+					{REGIONS.map((r) => (
+						<Chip
+							key={r.id}
+							on={region === r.id}
+							onClick={() => {
+								setRegion(r.id);
+								setPlatform(null);
+							}}
+						>
+							{r.label}
+						</Chip>
+					))}
+				</FilterRow>
+				<FilterRow label="Platform">
+					<Chip on={!platform} onClick={() => setPlatform(null)}>
+						All <Count n={inRegion} />
 					</Chip>
-				))}
-				<span className="mx-1 w-px self-stretch bg-zinc-800" />
-				{(["all", ...STANCES] as const).map((s) => (
-					<Chip key={s} on={stance === s} onClick={() => setStance(s)}>
-						{s === "all" ? "Any stance" : STANCE[s].label}
+					{platforms.map(([name, n]) => (
+						<Chip
+							key={name}
+							on={platform === name}
+							onClick={() => setPlatform(platform === name ? null : name)}
+						>
+							{name} <Count n={n} />
+						</Chip>
+					))}
+				</FilterRow>
+				<FilterRow label="Stance">
+					{(["all", ...STANCES] as const).map((s) => (
+						<Chip key={s} on={stance === s} onClick={() => setStance(s)}>
+							{s === "all" ? "Any" : STANCE[s].label}
+						</Chip>
+					))}
+					<span className="mx-1 w-px self-stretch bg-zinc-800" />
+					<Chip on={withImages} onClick={() => setWithImages(!withImages)}>
+						With images
 					</Chip>
-				))}
-				<span className="mx-1 w-px self-stretch bg-zinc-800" />
-				<Chip on={withImages} onClick={() => setWithImages(!withImages)}>
-					With images
-				</Chip>
+				</FilterRow>
 			</div>
 			<p className="mb-4 text-sm text-zinc-500">{list.length} posts</p>
 			<div
@@ -183,6 +219,27 @@ export function SocialFeed({ columns = 3 }: { columns?: 2 | 3 }) {
 			</div>
 		</div>
 	);
+}
+
+function FilterRow({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+			<span className="w-20 shrink-0 pt-1.5 text-xs tracking-wider text-zinc-500 uppercase">
+				{label}
+			</span>
+			<div className="flex flex-wrap gap-2">{children}</div>
+		</div>
+	);
+}
+
+function Count({ n }: { n: number }) {
+	return <span className="ml-0.5 font-mono text-xs text-zinc-500">{n}</span>;
 }
 
 export function Chip({
