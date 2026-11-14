@@ -27,6 +27,11 @@ const fmtDay = new Intl.DateTimeFormat("en-US", {
 	month: "short",
 	day: "numeric",
 });
+const fmtShortDay = new Intl.DateTimeFormat("en-US", {
+	timeZone: PT,
+	month: "short",
+	day: "numeric",
+});
 const fmtHour = new Intl.DateTimeFormat("en-US", {
 	timeZone: PT,
 	hour: "numeric",
@@ -45,7 +50,6 @@ export type ChartSeries = {
 };
 type Marker = ResearchResult["timeline"][number];
 
-const H = 340;
 const M = { top: 28, right: 16, bottom: 50, left: 48 };
 
 export function PriceChart({
@@ -57,6 +61,9 @@ export function PriceChart({
 }) {
 	const wrap = useRef<HTMLDivElement>(null);
 	const [W, setW] = useState(800);
+	// Taller aspect on phones so the lines stay readable; the svg scales with its width.
+	const compact = W < 560;
+	const H = compact ? 300 : 340;
 	const [hover, setHover] = useState<number | null>(null);
 	const [activeMarker, setActiveMarker] = useState<number | null>(null);
 	const [pinned, setPinned] = useState<number | null>(null);
@@ -64,7 +71,7 @@ export function PriceChart({
 	useEffect(() => {
 		const el = wrap.current;
 		if (!el) return;
-		const ro = new ResizeObserver(() => setW(Math.max(320, el.clientWidth)));
+		const ro = new ResizeObserver(() => setW(Math.max(280, el.clientWidth)));
 		ro.observe(el);
 		return () => ro.disconnect();
 	}, []);
@@ -125,7 +132,10 @@ export function PriceChart({
 	ts.forEach((t, i) => {
 		const d = dayKey.format(new Date(t * 1000));
 		if (d !== prevDay) {
-			sessions.push({ i, label: fmtDay.format(new Date(t * 1000)) });
+			sessions.push({
+				i,
+				label: (compact ? fmtShortDay : fmtDay).format(new Date(t * 1000)),
+			});
 			prevDay = d;
 		}
 	});
@@ -165,7 +175,7 @@ export function PriceChart({
 				width={W}
 				height={H}
 				viewBox={`0 0 ${W} ${H}`}
-				className="block max-w-full select-none"
+				className="block h-auto w-full select-none"
 				role="img"
 				aria-label="Percent change from window start, with news markers"
 			>
@@ -191,34 +201,43 @@ export function PriceChart({
 						</text>
 					</g>
 				))}
-				{sessions.map((s, k) => (
-					<g key={s.i}>
-						{k > 0 && (
-							<line
-								x1={x(s.i)}
-								x2={x(s.i)}
-								y1={M.top}
-								y2={H - M.bottom}
-								stroke="#27272a"
-								strokeDasharray="2 3"
-							/>
-						)}
-						<text
-							x={x(s.i) + 4}
-							y={H - M.bottom + 16}
-							className="fill-zinc-500 text-[11px]"
-						>
-							{s.label}
-						</text>
-						<text
-							x={x(s.i) + 4}
-							y={H - M.bottom + 29}
-							className="fill-zinc-600 font-mono text-[10px]"
-						>
-							{fmtHour.format(new Date(ts[s.i] * 1000))}
-						</text>
-					</g>
-				))}
+				{sessions.map((s, k) => {
+					// Drop a day label that would collide with the previous one.
+					const gap = compact ? 48 : 86;
+					const showLabel = k === 0 || x(s.i) - x(sessions[k - 1].i) >= gap;
+					return (
+						<g key={s.i}>
+							{k > 0 && (
+								<line
+									x1={x(s.i)}
+									x2={x(s.i)}
+									y1={M.top}
+									y2={H - M.bottom}
+									stroke="#27272a"
+									strokeDasharray="2 3"
+								/>
+							)}
+							{showLabel && (
+								<>
+									<text
+										x={x(s.i) + 4}
+										y={H - M.bottom + 16}
+										className="fill-zinc-500 text-[11px]"
+									>
+										{s.label}
+									</text>
+									<text
+										x={x(s.i) + 4}
+										y={H - M.bottom + 29}
+										className="fill-zinc-600 font-mono text-[10px]"
+									>
+										{fmtHour.format(new Date(ts[s.i] * 1000))}
+									</text>
+								</>
+							)}
+						</g>
+					);
+				})}
 				<text
 					x={W - M.right}
 					y={H - 4}
@@ -319,7 +338,8 @@ export function PriceChart({
 						/>
 						{items.length > 1 && (
 							<text
-								x={x(at) + 8}
+								x={x(at) > W - M.right - 20 ? x(at) - 8 : x(at) + 8}
+								textAnchor={x(at) > W - M.right - 20 ? "end" : "start"}
 								y={M.top - 14}
 								dy="0.32em"
 								className="pointer-events-none fill-zinc-400 font-mono text-[10px]"
