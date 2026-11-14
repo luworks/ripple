@@ -7,6 +7,12 @@ import {
 	SERIES_COLORS,
 	signedPct,
 } from "#/components/PriceChart";
+import {
+	formatEventTime,
+	keyNumbers,
+	seriesChange,
+	stripMoves,
+} from "#/components/research-numbers";
 import { getPrices, getResearchRun } from "#/server/research";
 import type {
 	AgentEvent,
@@ -272,11 +278,10 @@ function ResultView({
 	}, [symbols, r]);
 
 	const bySymbol = new Map(prices?.map((p) => [p.symbol, p]));
-	const windowChange = (s: string) => {
-		const pts = bySymbol.get(s.toUpperCase())?.points;
-		if (!pts || pts.length < 2) return null;
-		return (pts[pts.length - 1].c / pts[0].c - 1) * 100;
-	};
+	const windowChange = (s: string) =>
+		seriesChange(bySymbol.get(s.toUpperCase()));
+	const key = prices ? keyNumbers(r, prices) : null;
+	const impact = stripMoves(r.impact_summary);
 	const lines: ChartSeries[] = symbols
 		.filter((s) => on.has(s) && bySymbol.get(s)?.points.length)
 		.map((s) => ({
@@ -294,7 +299,7 @@ function ResultView({
 						{r.event.status}
 					</span>
 					<span className="font-mono text-zinc-500">
-						Started {formatPT(r.event.started_at)}
+						Started {formatEventTime(r.event.started_at)}
 					</span>
 					{durationMs != null && (
 						<span className="font-mono text-zinc-600">
@@ -418,9 +423,7 @@ function ResultView({
 												<th className="px-4 py-2 text-right font-medium">
 													Window (Yahoo)
 												</th>
-												<th className="px-4 py-2 font-medium">
-													Agent observation
-												</th>
+												<th className="px-4 py-2 font-medium">Agent note</th>
 											</tr>
 										</thead>
 										<tbody className="divide-y divide-zinc-800">
@@ -429,6 +432,7 @@ function ResultView({
 													(o) =>
 														o.symbol.toUpperCase() === t.symbol.toUpperCase(),
 												);
+												const note = obs ? stripMoves(obs.text) : "";
 												const ch = windowChange(t.symbol);
 												return (
 													<tr key={t.symbol} className="align-top">
@@ -463,15 +467,8 @@ function ResultView({
 															)}
 														</td>
 														<td className="px-4 py-3 text-zinc-400">
-															{obs ? (
-																<>
-																	{obs.change_pct != null && (
-																		<span className="mr-2 font-mono text-zinc-300">
-																			{signedPct(obs.change_pct)}
-																		</span>
-																	)}
-																	{obs.text}
-																</>
+															{note ? (
+																note
 															) : (
 																<span className="text-zinc-600">—</span>
 															)}
@@ -500,7 +497,7 @@ function ResultView({
 							/>
 							<div className="flex flex-wrap items-center gap-2">
 								<time className="font-mono text-sm text-zinc-500">
-									{formatPT(e.time)}
+									{formatEventTime(e.time)}
 								</time>
 								<span className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500">
 									{e.kind}
@@ -530,9 +527,35 @@ function ResultView({
 					<h2 className="text-sm font-medium uppercase tracking-wider text-zinc-400">
 						Impact summary
 					</h2>
-					<p className="mt-3 leading-relaxed text-zinc-300">
-						{r.impact_summary}
-					</p>
+					{key?.leadPct != null && (
+						<p className="mt-3 font-mono text-sm text-zinc-400">
+							Chart window: {key.lead}{" "}
+							<span
+								className={
+									key.leadPct < 0 ? "text-rose-300" : "text-emerald-300"
+								}
+							>
+								{signedPct(key.leadPct)}
+							</span>
+							{key.benchPct != null && key.excess != null && (
+								<>
+									{" "}
+									· {key.bench} {signedPct(key.benchPct)} · {key.lead} vs{" "}
+									{key.bench}{" "}
+									<span
+										className={
+											key.excess < 0 ? "text-rose-300" : "text-emerald-300"
+										}
+									>
+										{signedPct(key.excess)}
+									</span>
+								</>
+							)}
+						</p>
+					)}
+					{impact && (
+						<p className="mt-3 leading-relaxed text-zinc-300">{impact}</p>
+					)}
 				</div>
 				<div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
 					<h2 className="text-sm font-medium uppercase tracking-wider text-zinc-400">

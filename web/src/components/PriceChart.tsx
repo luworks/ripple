@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PriceSeries, ResearchResult } from "#/server/research-types";
+import { formatEventTime } from "./research-numbers";
 
 // Dark-mode categorical palette, assigned by entity order (never by rank).
 export const SERIES_COLORS = [
@@ -388,7 +389,9 @@ export function PriceChart({
 						{shownItems.map((k) => (
 							<li key={k}>
 								<div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-									<span className="font-mono">{formatPT(markers[k].time)}</span>
+									<span className="font-mono">
+										{formatEventTime(markers[k].time)}
+									</span>
 									<span>· {markers[k].source}</span>
 								</div>
 								<a

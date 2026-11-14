@@ -8,6 +8,15 @@ import {
 	signedPct,
 } from "#/components/PriceChart";
 import {
+	formatEventTime,
+	isDateOnly,
+	keyNumbers,
+	leadAndBench,
+	seriesChange,
+	stripMoves,
+	windowRequest,
+} from "#/components/research-numbers";
+import {
 	getPrices,
 	listResearchRuns,
 	startResearchRun,
@@ -18,14 +27,33 @@ import type { PriceSeries, ResearchResult } from "#/server/research-types";
 export const Route = createFileRoute("/research/")({
 	head: () => ({ meta: [{ title: "Event research · Ripple" }] }),
 	loader: async () => {
-		const runs = await listResearchRuns();
+		const runs = (await listResearchRuns()).filter((r) => !HIDDEN.has(r.id));
 		const featured = pickFeatured(runs);
+		const fetchFor = (r: ResearchResult, symbols: string[]) =>
+			getPrices({ data: windowRequest(r, symbols) }).catch(
+				() => [] as PriceSeries[],
+			);
 		const prices = featured?.result
-			? await getPrices({ data: priceRequest(featured.result) }).catch(
-					() => [] as PriceSeries[],
-				)
+			? await fetchFor(featured.result, featuredSymbols(featured.result))
 			: [];
-		return { runs, featuredId: featured?.id ?? null, prices };
+		// Cards show the same lead-vs-benchmark numbers as the run page, from the same window.
+		const cards = await Promise.all(
+			pickOthers(runs, featured).map(async (r) => {
+				const res = r.result as ResearchResult;
+				const { lead, bench } = leadAndBench(res);
+				const series = await fetchFor(
+					res,
+					[lead, bench].filter((s): s is string => !!s),
+				);
+				return [r.id, series] as const;
+			}),
+		);
+		return {
+			runs,
+			featuredId: featured?.id ?? null,
+			prices,
+			cardPrices: Object.fromEntries(cards),
+		};
 	},
 	component: ResearchHome,
 });
@@ -38,9 +66,11 @@ const examples = [
 ];
 
 const FEATURED = /jensen|黄仁勋/i;
+// Runs kept out of the showcase: the November FOMC run found no meeting (an empty result).
+const HIDDEN = new Set(["b9d93a31-aae4-4112-9af7-a455e13e6957"]);
 
 // Date-only items carry T00:00:00Z; they can't be placed on an intraday chart.
-const precise = (t: { time: string }) => !t.time.includes("T00:00:00");
+const precise = (t: { time: string }) => !isDateOnly(t.time);
 
 // Feature the event the site was built around, picking the run whose timeline has the most
 // distinct minute-precise timestamps; else the best recent run.
@@ -54,25 +84,35 @@ function pickFeatured(runs: RunSummary[]) {
 	return pool.sort((a, b) => score(b) - score(a))[0];
 }
 
+// One card per event: skip the featured event and repeat runs of the same query.
+function pickOthers(runs: RunSummary[], featured: RunSummary | undefined) {
+	const seen = new Set<string>();
+	return runs.filter((r) => {
+		if (r.status !== "done" || !r.result || r.id === featured?.id) return false;
+		const key = r.query.toLowerCase().trim();
+		if (seen.has(key)) return false;
+		if (featured && FEATURED.test(r.query) && FEATURED.test(featured.query))
+			return false;
+		seen.add(key);
+		return true;
+	});
+}
+
 function featuredSymbols(r: ResearchResult) {
+	const { lead, bench } = leadAndBench(r);
 	const direct = r.tickers
 		.filter((t) => t.relation === "direct")
 		.map((t) => t.symbol.toUpperCase());
 	return [
-		...new Set([
-			...direct.slice(0, 2),
-			...r.market.benchmarks.map((b) => b.toUpperCase()),
-		]),
+		...new Set(
+			[
+				lead,
+				...direct.slice(0, 2),
+				bench,
+				...r.market.benchmarks.map((b) => b.toUpperCase()),
+			].filter((s): s is string => !!s),
+		),
 	].slice(0, 5);
-}
-
-function priceRequest(r: ResearchResult) {
-	return {
-		symbols: featuredSymbols(r),
-		start: r.market.window_start,
-		end: r.market.window_end,
-		interval: r.market.interval,
-	};
 }
 
 const STATUS: Record<string, string> = {
@@ -82,20 +122,11 @@ const STATUS: Record<string, string> = {
 };
 
 function ResearchHome() {
-	const { runs, featuredId, prices } = Route.useLoaderData();
+	const { runs, featuredId, prices, cardPrices } = Route.useLoaderData();
 	const done = runs.filter((r) => r.status === "done" && r.result);
 	const pending = runs.filter((r) => r.status === "running");
 	const featured = done.find((r) => r.id === featuredId);
-	// One card per event: skip the featured event and repeat runs of the same query.
-	const seen = new Set<string>();
-	const others = done.filter((r) => {
-		const key = r.query.toLowerCase().trim();
-		if (r === featured || seen.has(key)) return false;
-		if (featured && FEATURED.test(r.query) && FEATURED.test(featured.query))
-			return false;
-		seen.add(key);
-		return true;
-	});
+	const others = pickOthers(runs, featured);
 	const navigate = useNavigate();
 	const [query, setQuery] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -188,7 +219,11 @@ function ResearchHome() {
 						</h2>
 						<div className="grid gap-4 sm:grid-cols-2">
 							{others.map((run) => (
-								<RunCard key={run.id} run={run} />
+								<RunCard
+									key={run.id}
+									run={run}
+									prices={cardPrices[run.id] ?? []}
+								/>
 							))}
 						</div>
 					</section>
@@ -224,30 +259,6 @@ function ResearchHome() {
 }
 
 type Result = ResearchResult;
-
-// Headline numbers from the agent's market-tool observations: lead ticker vs its benchmark.
-function headline(r: Result) {
-	const obs = new Map(
-		r.market.observations.map((o) => [o.symbol.toUpperCase(), o.change_pct]),
-	);
-	const lead =
-		r.tickers.find(
-			(t) => t.relation === "direct" && obs.get(t.symbol.toUpperCase()) != null,
-		) ?? r.tickers.find((t) => obs.get(t.symbol.toUpperCase()) != null);
-	const benchSym =
-		["SPY", ...r.market.benchmarks].find(
-			(b) => obs.get(b.toUpperCase()) != null,
-		) ?? null;
-	const leadPct = lead ? (obs.get(lead.symbol.toUpperCase()) ?? null) : null;
-	const benchPct = benchSym ? (obs.get(benchSym.toUpperCase()) ?? null) : null;
-	return {
-		lead: lead?.symbol ?? null,
-		leadPct,
-		benchSym,
-		benchPct,
-		excess: leadPct != null && benchPct != null ? leadPct - benchPct : null,
-	};
-}
 
 const pctClass = (v: number | null) =>
 	v == null ? "text-zinc-500" : v < 0 ? "text-rose-400" : "text-emerald-400";
@@ -295,27 +306,10 @@ function Featured({
 	const timeline = [...r.timeline].sort((a, b) => a.time.localeCompare(b.time));
 	const exact = timeline.filter(precise);
 	const highlights = (exact.length >= 3 ? exact : timeline).slice(0, 5);
-	const change = (l: ChartSeries) => {
-		const p = l.series.points;
-		return p.length > 1 ? (p[p.length - 1].c / p[0].c - 1) * 100 : null;
-	};
+	const change = (l: ChartSeries) => seriesChange(l.series);
 	// Stat tiles use the same Yahoo series as the chart, so the numbers always agree with it.
-	const chartPct = (sym: string | null) => {
-		const l = lines.find((x) => x.symbol === sym?.toUpperCase());
-		return l ? change(l) : null;
-	};
-	const agent = headline(r);
-	const leadPct = chartPct(agent.lead);
-	const benchSym =
-		["SPY", ...r.market.benchmarks].find((b) => chartPct(b) != null) ?? null;
-	const benchPct = chartPct(benchSym);
-	const h = {
-		lead: agent.lead,
-		leadPct,
-		benchSym,
-		benchPct,
-		excess: leadPct != null && benchPct != null ? leadPct - benchPct : null,
-	};
+	const h = keyNumbers(r, prices);
+	const impact = stripMoves(r.impact_summary);
 
 	return (
 		<section className="flex flex-col gap-6 rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 sm:p-7">
@@ -339,11 +333,11 @@ function Featured({
 					cls={pctClass(h.leadPct)}
 				/>
 				<Stat
-					label={`vs ${h.benchSym ?? "benchmark"}`}
+					label={`vs ${h.bench}`}
 					value={h.excess != null ? signedPct(h.excess) : "—"}
 					note={
 						h.benchPct != null
-							? `${h.benchSym} ${signedPct(h.benchPct)}`
+							? `${h.bench} ${signedPct(h.benchPct)}`
 							: undefined
 					}
 					cls={pctClass(h.excess)}
@@ -395,7 +389,7 @@ function Featured({
 					{highlights.map((t) => (
 						<li key={t.url + t.time} className="flex gap-3 text-sm">
 							<span className="w-32 shrink-0 font-mono text-xs leading-5 text-zinc-500">
-								{formatPT(t.time)}
+								{formatEventTime(t.time)}
 							</span>
 							<a
 								href={t.url}
@@ -413,7 +407,7 @@ function Featured({
 					<span className="mb-1 block text-xs uppercase tracking-wider text-zinc-500">
 						Impact
 					</span>
-					{r.impact_summary}
+					{impact}
 				</p>
 			</div>
 			<Link
@@ -427,9 +421,9 @@ function Featured({
 	);
 }
 
-function RunCard({ run }: { run: RunSummary }) {
+function RunCard({ run, prices }: { run: RunSummary; prices: PriceSeries[] }) {
 	const r = run.result as Result;
-	const h = headline(r);
+	const h = keyNumbers(r, prices);
 	return (
 		<Link
 			to="/research/$id"
@@ -448,7 +442,7 @@ function RunCard({ run }: { run: RunSummary }) {
 				)}
 			</div>
 			<p className="line-clamp-3 text-sm leading-relaxed text-zinc-400">
-				{r.impact_summary || r.event.summary}
+				{stripMoves(r.impact_summary) || r.event.summary}
 			</p>
 			<div className="flex flex-wrap gap-1.5">
 				{r.tickers.slice(0, 6).map((t) => (
@@ -463,7 +457,7 @@ function RunCard({ run }: { run: RunSummary }) {
 			<div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-zinc-500">
 				{h.excess != null && (
 					<span className={pctClass(h.excess)}>
-						{signedPct(h.excess)} vs {h.benchSym}
+						{signedPct(h.excess)} vs {h.bench}
 					</span>
 				)}
 				<span>{r.timeline.length} sources</span>
