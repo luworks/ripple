@@ -57,30 +57,34 @@ function Home() {
 					<DemoVideo />
 				</section>
 
-				<section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-5">
-					<div className="flex flex-col gap-4 lg:col-span-2">
-						<Kicker>Search, built on Telem</Kicker>
-						<h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-							How far did it spread?
-						</h2>
-						<p className="leading-relaxed text-zinc-400">
-							The agent reads the headline as an event, searches in English and
-							the event's local language, ranks the earliest credible source
-							first, and grounds every line in a URL and a UTC time.
-						</p>
-						<p className="leading-relaxed text-zinc-400">
-							Telem reaches X, Reddit, Weibo, Xiaohongshu, Zhihu and more behind
-							one API. Without it, each would be its own scraper and login.
-						</p>
-						<div className="grid grid-cols-3 gap-4 pt-2">
+				<section className="flex flex-col gap-8">
+					<div className="grid grid-cols-1 items-end gap-x-10 gap-y-6 lg:grid-cols-5">
+						<div className="flex flex-col gap-4 lg:col-span-3">
+							<Kicker>Search, built on Telem</Kicker>
+							<h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+								How far did it spread?
+							</h2>
+							<p className="leading-relaxed text-zinc-400">
+								One week of the Jensen Huang story on a single clock: NVDA
+								minute by minute, each event as it was reported, and every post
+								Telem found on X, Xiaohongshu, Douyin, TikTok, LinkedIn and
+								Instagram at the minute it was published.
+							</p>
+						</div>
+						<div className="grid grid-cols-3 gap-4 lg:col-span-2">
 							<Kpi value="180" label="relevant posts collected" />
 							<Kpi value="13" label="social platforms" />
 							<Kpi value="~3 min" label="posts after price" />
 						</div>
 					</div>
-					<div className="lg:col-span-3">
-						<RippleReplayView />
-					</div>
+					<RippleReplayView />
+					<p className="max-w-3xl leading-relaxed text-zinc-400">
+						The agent reads the headline as an event, searches in English and
+						the event's local language, ranks the earliest credible source
+						first, and grounds every line in a URL and a UTC time. Telem reaches
+						X, Reddit, Weibo, Xiaohongshu, Zhihu and more behind one API.
+						Without it, each would be its own scraper and login.
+					</p>
 				</section>
 
 				<TelemStages />

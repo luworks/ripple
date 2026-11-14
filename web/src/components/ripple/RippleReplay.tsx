@@ -1,162 +1,239 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getRippleReplay, type RippleReplay } from "#/server/ripple";
-import { changeAt, fmtPct, STANCE_COLOR } from "./replay";
-import type { RippleHandle } from "./scene";
+import { TelemCredits } from "#/components/events/Telem";
+import {
+	getRippleStory,
+	type RippleEvent,
+	type RipplePost,
+	type RippleStory,
+} from "#/server/ripple";
+import {
+	buildModel,
+	etClock,
+	etDayLong,
+	etShort,
+	fmtPct,
+	STANCE_COLOR,
+} from "./replay";
+import { mountStage, type StageHandle } from "./stage";
 
-const ptClock = new Intl.DateTimeFormat("en-US", {
-	timeZone: "America/Los_Angeles",
-	weekday: "short",
-	month: "short",
-	day: "numeric",
-	hour: "numeric",
-	minute: "2-digit",
-});
-const etDate = new Intl.DateTimeFormat("en-CA", {
-	timeZone: "America/New_York",
-	year: "numeric",
-	month: "2-digit",
-	day: "2-digit",
-});
+const STAGE = "relative h-[430px] sm:h-[440px]";
+// Lets a card's Telem credits run on one wrapping line instead of one row each.
+const INLINE = "[&>div]:flex-row [&>div]:flex-wrap [&>div]:gap-x-4";
+const CSS = `
+@keyframes ripple-card { from { opacity: 0; transform: translateY(12px) scale(0.985) } to { opacity: 1; transform: none } }
+@keyframes ripple-row { from { grid-template-rows: 0fr; opacity: 0 } to { grid-template-rows: 1fr; opacity: 1 } }
+.ripple-card { animation: ripple-card 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both }
+.ripple-row { display: grid; animation: ripple-row 320ms ease-out both }
+@media (prefers-reduced-motion: reduce) { .ripple-card, .ripple-row { animation: none } }
+`;
 
-// Replays the Jensen Huang resignation: real timestamped posts flying out to their
-// platforms while real 5-minute prices move the ticker bars, all on one clock.
+// One week of the Jensen Huang story on a single clock: NVDA minute by minute on top, each
+// dated event as a card below, and every timestamped post landing on its platform's lane.
 export function RippleReplayView() {
-	const [data, setData] = useState<RippleReplay | null>(null);
+	const [story, setStory] = useState<RippleStory | null>(null);
 	const [err, setErr] = useState(false);
 	useEffect(() => {
 		let live = true;
-		getRippleReplay()
-			.then((d) => live && setData(d))
+		getRippleStory()
+			.then((s) => live && setStory(s))
 			.catch(() => live && setErr(true));
 		return () => {
 			live = false;
 		};
 	}, []);
-	if (!data)
+	if (!story)
 		return (
-			<div className="flex aspect-square w-full items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/30 text-sm text-zinc-500 sm:aspect-[4/3]">
+			<div className="flex h-[1150px] items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/30 text-sm text-zinc-500 lg:h-[870px]">
 				{err ? "Replay data unavailable" : "Loading replay…"}
 			</div>
 		);
-	return <Replay data={data} />;
+	return <Replay story={story} />;
 }
 
-function Replay({ data }: { data: RippleReplay }) {
-	const host = useRef<HTMLDivElement>(null);
-	const handle = useRef<RippleHandle | null>(null);
-	const [t, setT] = useState(data.start);
-	const [playing, setPlaying] = useState(false);
-	const [failed, setFailed] = useState(false);
+const put = (el: HTMLElement | null, text: string) => {
+	if (el && el.textContent !== text) el.textContent = text;
+};
+const tint = (el: HTMLElement | null, pct: number) => {
+	if (el) el.dataset.down = String(pct < 0);
+};
+const PCT = "text-emerald-300 data-[down=true]:text-rose-300";
+
+function Replay({ story }: { story: RippleStory }) {
+	const model = useMemo(() => buildModel(story), [story]);
+	const canvas = useRef<HTMLCanvasElement>(null);
+	const handle = useRef<StageHandle | null>(null);
+	const clock = useRef<HTMLSpanElement>(null);
+	const market = useRef<HTMLSpanElement>(null);
+	const price = useRef<HTMLSpanElement>(null);
+	const since = useRef<HTMLSpanElement>(null);
+	const onDay = useRef<HTMLSpanElement>(null);
+	const range = useRef<HTMLInputElement>(null);
+	const [view, setView] = useState({ day: 0, shown: 0, playing: false });
 
 	useEffect(() => {
-		const el = host.current;
+		const el = canvas.current;
 		if (!el) return;
-		let disposed = false;
-		const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-		const interactive = !matchMedia("(pointer: coarse)").matches;
-		import("./scene")
-			.then(({ mountRipple }) => {
-				if (disposed) return;
-				handle.current = mountRipple(el, data, {
-					reduced,
-					interactive,
-					onTime: (time, on) => {
-						setT(time);
-						setPlaying(on);
-					},
-				});
-			})
-			.catch(() => setFailed(true));
+		const h = mountStage(el, model, {
+			reduced: matchMedia("(prefers-reduced-motion: reduce)").matches,
+			onTick(t, p, playing) {
+				const c = model.bars[model.barAt(t)].c;
+				const day = model.dayAt(t);
+				const d = story.days[day];
+				const pct = (c / story.baseline - 1) * 100;
+				put(clock.current, `${etClock.format(t)} ET`);
+				put(market.current, model.marketState(t));
+				put(price.current, `$${c.toFixed(2)}`);
+				put(since.current, fmtPct(pct));
+				tint(since.current, pct);
+				const dayPct = d.prevClose ? (c / d.prevClose - 1) * 100 : 0;
+				put(onDay.current, d.session ? `NVDA ${fmtPct(dayPct)}` : "No session");
+				tint(onDay.current, d.session ? dayPct : 0);
+				if (range.current) range.current.value = String(Math.round(p * 1000));
+				const shown = model.shownAt(t);
+				setView((v) =>
+					v.day === day && v.shown === shown && v.playing === playing
+						? v
+						: { day, shown, playing },
+				);
+			},
+		});
+		handle.current = h;
 		return () => {
-			disposed = true;
-			handle.current?.dispose();
+			h.dispose();
 			handle.current = null;
 		};
-	}, [data]);
+	}, [model, story]);
 
-	const span = data.end - data.start;
-	const nvda = data.prices.find((s) => s.symbol === "NVDA");
-	const quote = nvda ? changeAt(nvda, data.baseline, t) : null;
-	const day = etDate.format(t);
-	const beats = data.beats.filter((b) => b.date === day);
-	const shown = useMemo(() => {
-		let n = 0;
-		while (n < data.posts.length && data.posts[n].t <= t) n++;
-		return n;
-	}, [data, t]);
-	const latest = shown ? data.posts[shown - 1] : null;
+	const { day, shown, playing } = view;
+	const d = story.days[day];
+	const events = model.eventsByDay[day];
+	const today = model.platforms.map(() => 0);
+	for (let i = shown - 1; i >= 0 && story.posts[i].t >= d.start; i--)
+		today[model.lane[i]]++;
+	const feed = story.posts.slice(Math.max(0, shown - 4), shown).reverse();
 
 	return (
 		<div className="flex flex-col gap-3">
-			<div
-				ref={host}
-				className="relative aspect-square w-full overflow-hidden rounded-2xl border border-zinc-800 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.08),transparent_65%)] sm:aspect-[4/3]"
-			>
-				<div className="pointer-events-none absolute top-3 left-3 z-10 flex flex-col gap-0.5 text-xs">
-					<span className="font-mono text-zinc-200">
-						{ptClock.format(t)} PT
-					</span>
-					{quote && (
-						<span className="font-mono">
-							<span className="text-zinc-400">NVDA </span>
-							<span className="text-zinc-200">${quote.price.toFixed(2)}</span>{" "}
-							<span
-								className={
-									quote.pct >= 0 ? "text-emerald-300" : "text-rose-300"
-								}
-							>
-								{fmtPct(quote.pct)}
-							</span>
-						</span>
-					)}
-					<span className="text-zinc-500">
-						{shown} / {data.posts.length} posts
-					</span>
-				</div>
-				{failed && (
-					<div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">
-						3D view unavailable in this browser
-					</div>
-				)}
-			</div>
-
-			<div className="flex min-h-[2.5rem] flex-col gap-1 text-sm">
-				<p className="text-zinc-300">
-					<span className="mr-2 font-mono text-xs text-sky-400">
-						{day.slice(5).replace("-", "/")} ET
-					</span>
-					{beats.length ? beats.map((b) => b.title).join(" · ") : "—"}
-				</p>
-				{latest && (
-					<a
-						href={latest.url}
-						target="_blank"
-						rel="noreferrer"
-						className="truncate text-xs text-zinc-400 hover:text-zinc-200"
-					>
-						<span
-							className="mr-1.5 inline-block h-2 w-2 rounded-full"
-							style={{ background: STANCE_COLOR[latest.stance] }}
-						/>
-						{latest.platform} · {latest.title}
-					</a>
-				)}
-			</div>
-
-			<div className="flex items-center gap-3">
-				<button
-					type="button"
-					onClick={() => handle.current?.setPlaying(!playing)}
-					aria-label={playing ? "Pause replay" : "Play replay"}
-					className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-200 hover:border-sky-400/60"
+			<style>{CSS}</style>
+			<div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/30 has-[input:focus-visible]:border-sky-400/70">
+				<div
+					className={`${STAGE} bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.07),transparent_60%)]`}
 				>
-					{playing ? "❚❚" : "▶"}
-				</button>
-				<Scrubber
-					data={data}
-					p={(t - data.start) / span}
-					onSeek={(v) => handle.current?.seek(v)}
-				/>
+					<canvas
+						ref={canvas}
+						className="absolute inset-0 h-full w-full cursor-ew-resize touch-pan-y select-none"
+					/>
+					<div className="pointer-events-none absolute top-3 right-14 left-3 flex flex-wrap items-baseline gap-x-5 gap-y-0.5 sm:left-4">
+						<span className="flex items-baseline gap-x-2 text-sm">
+							<span ref={clock} className="font-medium text-zinc-100" />
+							<span ref={market} className="text-xs text-zinc-500" />
+						</span>
+						<span className="font-mono text-xs text-zinc-400">
+							NVDA <span ref={price} className="text-zinc-100" />{" "}
+							<span ref={since} className={PCT} /> since Nov 6 close
+						</span>
+						<span className="text-xs text-zinc-500">
+							<span className="font-mono text-sky-300">{shown}</span> /{" "}
+							{story.posts.length} posts found with Telem
+						</span>
+					</div>
+					<button
+						type="button"
+						onClick={() => handle.current?.setPlaying(!playing)}
+						aria-label={playing ? "Pause replay" : "Play replay"}
+						className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/70 text-xs text-zinc-200 hover:border-sky-400/60"
+					>
+						<svg
+							viewBox="0 0 12 12"
+							className="h-3 w-3 fill-current"
+							aria-hidden="true"
+						>
+							<path
+								d={playing ? "M2 1h3v10H2zM7 1h3v10H7z" : "M3 1l8 5-8 5z"}
+							/>
+						</svg>
+					</button>
+					<input
+						ref={range}
+						type="range"
+						min={0}
+						max={1000}
+						defaultValue={0}
+						onChange={(e) =>
+							handle.current?.seek(Number(e.target.value) / 1000)
+						}
+						aria-label="Replay position"
+						className="sr-only"
+					/>
+				</div>
+
+				<div className="border-t border-zinc-800">
+					<div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-800/70 px-3 py-3 sm:px-4">
+						<h3 className="text-lg font-semibold tracking-tight">
+							{etDayLong.format(d.start)}
+						</h3>
+						<span className="text-xs text-zinc-500">
+							<span ref={onDay} className={`font-mono text-sm ${PCT}`} />
+							{d.session ? " vs prior close" : " · weekend"}
+						</span>
+						<ul className="flex flex-wrap gap-1.5 text-xs sm:ml-auto">
+							{model.platforms.map((name, k) => (
+								<li
+									key={name}
+									className={`rounded-full border px-2 py-0.5 ${today[k] ? "border-sky-400/40 text-zinc-200" : "border-zinc-800 text-zinc-600"}`}
+								>
+									{name}{" "}
+									<span className="inline-block min-w-[1.1em] text-right font-mono tabular-nums">
+										{today[k]}
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+
+					<div className="grid grid-cols-1 lg:grid-cols-12">
+						<div className="flex h-[26.5rem] flex-col gap-2 overflow-hidden px-3 py-3 sm:h-[23.5rem] sm:px-4 lg:col-span-5 lg:border-r lg:border-zinc-800/70">
+							<Label>
+								What happened
+								<span className="text-zinc-600 normal-case tracking-normal">
+									{" "}
+									· sources give the date only
+								</span>
+							</Label>
+							<div key={d.date} className="ripple-card flex flex-col gap-2.5">
+								{events.map((e) => (
+									<EventCard key={e.id} e={e} solo={events.length === 1} />
+								))}
+							</div>
+						</div>
+						<div className="flex h-[24rem] flex-col gap-2 overflow-hidden border-t border-zinc-800/70 px-3 py-3 sm:h-[23.5rem] sm:px-4 lg:col-span-7 lg:border-t-0">
+							<Label>
+								Where it spread
+								<span className="text-zinc-600 normal-case tracking-normal">
+									{" "}
+									· newest post first, at its publish time
+								</span>
+							</Label>
+							{feed.length ? (
+								<div className="flex flex-col [mask-image:linear-gradient(to_bottom,black_82%,transparent)]">
+									{feed.map((p) => (
+										<div key={`${p.t}-${p.url}`} className="ripple-row">
+											<div className="min-h-0 overflow-hidden">
+												<PostRow p={p} />
+											</div>
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="text-sm text-zinc-500">
+									No posts yet. The first one lands{" "}
+									{etShort.format(story.posts[0].t)} ET.
+								</p>
+							)}
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
@@ -166,107 +243,115 @@ function Replay({ data }: { data: RippleReplay }) {
 						{k}
 					</span>
 				))}
+				<span className="flex items-center gap-1.5">
+					<span className="h-2 w-2 rounded-full bg-amber-400" />
+					event
+				</span>
+				<span>bright line: regular session · thin: pre/after-hours</span>
 			</div>
-			<p className="text-xs leading-relaxed text-zinc-500">
-				{data.posts.length} timestamped posts of {data.totalPosts} relevant
-				(Weibo and Zhihu posts carry no time, so they sit out). Bars: Yahoo
-				Finance 5-minute closes vs the Nov 11 close, flat while the market is
-				shut. Headlines are date-only (US Eastern). Nov 11 1 PM – Nov 14 12 PM
-				PT, replayed in ~30 s.
+			<p className="max-w-4xl text-xs leading-relaxed text-zinc-500">
+				{story.posts.length} of the {story.totalPosts} relevant posts Telem
+				Search found carry a publish time inside Nov 8–14; each sits at that
+				minute. Event cards come from dated news reports with no time of day, so
+				a card appears when its US Eastern day starts. Prices are Yahoo Finance
+				1-minute NVDA bars including pre-market and after-hours, not from Telem.
+				The time axis is stretched where posts and price moves cluster and
+				squeezed where nothing happened. Drag the chart to scrub.
 			</p>
 		</div>
 	);
 }
 
-// Range input over an NVDA sparkline and one tick per post, colored by stance.
-function Scrubber({
-	data,
-	p,
-	onSeek,
-}: {
-	data: RippleReplay;
-	p: number;
-	onSeek(v: number): void;
-}) {
-	const span = data.end - data.start;
-	const W = 1000;
-	const H = 44;
-	const paths = useMemo(() => {
-		const nvda = data.prices.find((s) => s.symbol === "NVDA");
-		const pts = (nvda?.points ?? []).filter(
-			(q) => q.t * 1000 >= data.start - 6 * 3600_000 && q.t * 1000 <= data.end,
-		);
-		if (!pts.length) return [];
-		const lo = Math.min(...pts.map((q) => q.c));
-		const hi = Math.max(...pts.map((q) => q.c));
-		const x = (ms: number) => Math.max(0, ((ms - data.start) / span) * W);
-		const y = (c: number) => 4 + (1 - (c - lo) / (hi - lo || 1)) * (H - 16);
-		// One path per trading session: break where bars are >30 min apart.
-		const out: string[] = [];
-		let prev = -Infinity;
-		for (const q of pts) {
-			const ms = q.t * 1000;
-			if (ms < data.start) continue;
-			const xy = `${x(ms).toFixed(1)},${y(q.c).toFixed(1)}`;
-			if (ms - prev > 1800_000) out.push(`M${xy}`);
-			else out[out.length - 1] += `L${xy}`;
-			prev = ms;
-		}
-		return out;
-	}, [data, span]);
+function Label({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="relative h-11 flex-1">
-			<svg
-				viewBox={`0 0 ${W} ${H}`}
-				preserveAspectRatio="none"
-				className="absolute inset-0 h-full w-full overflow-visible"
-				aria-hidden="true"
-			>
-				<rect width={W} height={H} rx={6} className="fill-zinc-900/60" />
-				{paths.map((d) => (
-					<path
-						key={d}
-						d={d}
-						fill="none"
-						stroke="#a1a1aa"
-						strokeWidth={1.5}
-						vectorEffect="non-scaling-stroke"
+		<span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+			{children}
+		</span>
+	);
+}
+
+function EventCard({ e, solo }: { e: RippleEvent; solo: boolean }) {
+	return (
+		<article className="flex flex-col gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-3">
+			<div className="flex gap-3">
+				{e.image && (
+					<img
+						src={e.image.src}
+						alt=""
+						title={`Image: ${e.image.from}`}
+						className="h-[4.5rem] w-24 shrink-0 rounded-lg object-cover"
 					/>
-				))}
-				{data.posts.map((post) => {
-					const x = ((post.t - data.start) / span) * W;
-					return (
-						<line
-							key={`${post.url}-${post.t}`}
-							x1={x}
-							x2={x}
-							y1={H - 9}
-							y2={H - 2}
-							stroke={STANCE_COLOR[post.stance]}
-							strokeWidth={1.5}
-							vectorEffect="non-scaling-stroke"
-						/>
-					);
-				})}
-				<line
-					x1={p * W}
-					x2={p * W}
-					y1={0}
-					y2={H}
-					stroke="#38bdf8"
-					strokeWidth={2}
-					vectorEffect="non-scaling-stroke"
+				)}
+				<div className="flex min-w-0 flex-col gap-1.5">
+					<Link
+						to="/events/jensen-huang"
+						hash={e.id}
+						className="font-medium leading-snug text-zinc-100 hover:text-amber-200"
+					>
+						{e.title}
+					</Link>
+					<p className="text-xs leading-relaxed text-zinc-500">
+						Reported by{" "}
+						{e.sources.map((s, i) => (
+							<span key={s.url}>
+								{i > 0 && ", "}
+								<a
+									href={s.url}
+									target="_blank"
+									rel="noreferrer"
+									className="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:text-amber-200"
+								>
+									{s.label}
+								</a>
+							</span>
+						))}
+					</p>
+				</div>
+			</div>
+			{solo && (
+				<p className="line-clamp-6 text-sm leading-relaxed text-zinc-400">
+					{e.detail}
+				</p>
+			)}
+			<div className={solo ? "" : INLINE}>
+				<TelemCredits credits={e.credits} />
+			</div>
+		</article>
+	);
+}
+
+function PostRow({ p }: { p: RipplePost }) {
+	return (
+		<a
+			href={p.url}
+			target="_blank"
+			rel="noreferrer"
+			className="mb-2 flex gap-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-2.5 py-2 hover:border-zinc-600"
+		>
+			{p.image && (
+				<img
+					src={p.image}
+					alt=""
+					className="h-14 w-14 shrink-0 rounded-lg object-cover"
 				/>
-			</svg>
-			<input
-				type="range"
-				min={0}
-				max={1000}
-				value={Math.round(p * 1000)}
-				onChange={(e) => onSeek(Number(e.target.value) / 1000)}
-				aria-label="Replay time"
-				className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-			/>
-		</div>
+			)}
+			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+				<div className="flex items-center gap-2 text-xs">
+					<span
+						className="h-2 w-2 shrink-0 rounded-full"
+						style={{ background: STANCE_COLOR[p.stance] }}
+					/>
+					<span className="font-medium text-zinc-200">{p.platform}</span>
+					<span className="text-zinc-500">{p.stance}</span>
+					<span className="ml-auto shrink-0 font-mono text-zinc-500">
+						{etShort.format(p.t)} ET
+					</span>
+				</div>
+				<p className="truncate text-sm text-zinc-300">{p.title}</p>
+				<div className={INLINE}>
+					<TelemCredits credits={p.credits} />
+				</div>
+			</div>
+		</a>
 	);
 }
