@@ -2,6 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
+import { SiteHeader } from '../components/SiteHeader'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -34,7 +35,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="bg-zinc-950">
+        <SiteHeader />
         {children}
         <TanStackDevtools
           config={{

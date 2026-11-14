@@ -122,12 +122,6 @@ function JensenHuangEvent() {
 function Hero() {
 	return (
 		<header className="flex flex-col gap-8">
-			<nav className="text-sm text-zinc-500">
-				<Link to="/" className="hover:text-zinc-300">
-					brain<span className="text-emerald-400">0</span>
-				</Link>{" "}
-				/ events
-			</nav>
 			<div className="flex flex-col gap-5">
 				<span className="w-fit rounded-full border border-zinc-800 px-3 py-1 text-xs tracking-wide text-zinc-400">
 					Event brief · updated Nov 14, 2026
