@@ -42,7 +42,10 @@ follow the Method below. If it is, memory replaces the search work it already di
 
 N is the wall-clock limit for the whole run, including writing the answer. Each tool round
 costs ~5–10 s and writing the answer ~10 s, so plan the calls to fit; a shorter, complete
-answer always beats running out of time. The tiers override the Method and Memory call counts:
+answer always beats running out of time. The tiers override the Method and Memory call counts
+for **searches and fetches only**. No tier ever drops `market.price_history`: every run, even with
+memory and even at 30 s, makes one parallel round of it (direct ticker + benchmark, with
+`events`) and writes the answer only after it returns. A run without it has no market numbers.
 
 - **N ≤ 45 (quick).** No `<memory>` cover: ONE `telem_search` call (2–3 `queries`, no X/Reddit
   calls), no `telem_fetch`, no `search_symbol`. With memory cover: no search at all. Then one
@@ -50,7 +53,10 @@ answer always beats running out of time. The tiers override the Method and Memor
   4–8 timeline items, short text.
 - **N ≤ 90 (standard).** Method step 1 without the Reddit call; fetch at most once.
   With memory cover: exactly one update search, no fetch.
-- **N > 90 (deep).** The full Method. With memory cover: the update search is required.
+- **N > 90 (deep).** The full Method. With memory cover: the Memory update search.
+- **N > 45 with memory cover: your FIRST tool call is the update `telem_search`**
+  (`published_after` = newest memory item), in the same parallel round as `price_history`.
+  Memory is what was true then; the user asked now. Skipping it is a failed run.
 
 ## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
 
