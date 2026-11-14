@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
 			{
 				name: "description",
 				content:
-					"Type a market-moving event. Get the people, exposed tickers, a minute-level timeline and the chatter from X, Reddit and Chinese social platforms via Telem, every claim linked to its source.",
+					"Type a market-moving event. Get the people, exposed tickers, a minute-level timeline and the chatter from X, Xiaohongshu, Douyin and 30+ more platforms via Telem, every claim linked to its source.",
 			},
 		],
 	}),
@@ -34,8 +34,8 @@ function Home() {
 							<p className="max-w-xl text-lg leading-relaxed text-zinc-400">
 								Type a market-moving event. In under a minute you get the
 								people, the exposed tickers, a minute-level timeline and the
-								chatter from X, Reddit and Chinese social platforms via Telem,
-								every claim linked to its source.
+								chatter from X, Xiaohongshu, Douyin and 30+ more platforms via
+								Telem, every claim linked to its source.
 							</p>
 						</div>
 						<div className="flex shrink-0 flex-col gap-3 lg:items-end">
@@ -73,7 +73,7 @@ function Home() {
 						<div className="grid grid-cols-3 gap-4 lg:col-span-2">
 							<Kpi value="180" label="relevant posts collected" />
 							<Kpi value="13" label="social platforms" />
-							<Kpi value="~3 min" label="posts after price" />
+							<Kpi value="<1 min" label="first Telem hit after NVDA broke" />
 						</div>
 					</div>
 					<RippleReplayView />

@@ -141,10 +141,6 @@ export const SOURCES = [
 		href: "https://connect.neugroup.com/public/blogs/bloomberg-terminals-how-much-more-youll-pay-next-year",
 	},
 	{
-		label: "Bloomberg terminals (Wikipedia)",
-		href: "https://en.wikipedia.org/wiki/Bloomberg_Terminal",
-	},
-	{
 		label: "Bloomberg social sentiment",
 		href: "https://www.bloomberg.com/company/press/trending-on-twitter-social-sentiment-analytics",
 	},
@@ -159,14 +155,5 @@ export const SOURCES = [
 	{
 		label: "Benzinga Pro prices",
 		href: "https://www.liberatedstocktrader.com/benzinga-discount-coupon-code/",
-	},
-	{
-		label: "Market-data spend (Burton-Taylor via FOW)",
-		href: "https://www.fow.com/insights/market-data-spend-hits-usd49-2bn-as-ai-volatility-and-algos-drive-growth",
-	},
-	{ label: "Telem pricing", href: "https://docs.telem.ai/pricing" },
-	{
-		label: "GPT-5.4 mini pricing",
-		href: "https://openai.com/index/introducing-gpt-5-4-mini-and-nano/",
 	},
 ];
