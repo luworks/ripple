@@ -41,22 +41,31 @@ function JensenHuangEvent() {
 
 function ViewSwitcher({ current }: { current: View }) {
 	return (
-		<div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/95 p-1 text-sm shadow-2xl shadow-black/50 backdrop-blur">
-			<span className="px-3 text-xs text-zinc-500">View</span>
+		<nav
+			aria-label="View"
+			className="fixed top-1/2 right-1 z-40 flex -translate-y-1/2 flex-col gap-1 sm:right-2"
+		>
 			{(Object.keys(VIEWS) as View[]).map((v) => (
 				<Link
 					key={v}
 					to="/events/jensen-huang"
 					search={v === "live" ? {} : { view: v }}
-					className={`rounded-full px-3 py-1.5 whitespace-nowrap ${
-						v === current
-							? "bg-emerald-400/15 text-emerald-300"
-							: "text-zinc-400 hover:text-zinc-100"
-					}`}
+					aria-label={VIEWS[v].label}
+					aria-current={v === current ? "page" : undefined}
+					className="group relative flex size-7 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
 				>
-					{VIEWS[v].label}
+					<span
+						className={`block size-2.5 rounded-full border transition ${
+							v === current
+								? "scale-125 border-emerald-300 bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/60"
+								: "border-zinc-500 bg-zinc-800/80 group-hover:border-zinc-200 group-hover:bg-zinc-500"
+						}`}
+					/>
+					<span className="pointer-events-none absolute right-full mr-1 rounded-full border border-zinc-700 bg-zinc-900/95 px-2.5 py-1 text-xs whitespace-nowrap text-zinc-200 opacity-0 shadow-lg shadow-black/50 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+						{VIEWS[v].label}
+					</span>
 				</Link>
 			))}
-		</div>
+		</nav>
 	);
 }
