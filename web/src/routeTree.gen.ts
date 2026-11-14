@@ -13,6 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TavilyRouteImport } from './routes/tavily'
 import { Route as TelemRouteImport } from './routes/telem'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
+import { Route as ResearchIndexRouteImport } from './routes/research/index'
+import { Route as ResearchIdRouteImport } from './routes/research/$id'
+import { Route as ApiResearchIndexRouteImport } from './routes/api/research/index'
+import { Route as ApiResearchIdEventsRouteImport } from './routes/api/research/$id/events'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +38,46 @@ const EventsJensenHuangRoute = EventsJensenHuangRouteImport.update({
   path: '/events/jensen-huang',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResearchIndexRoute = ResearchIndexRouteImport.update({
+  id: '/research/',
+  path: '/research/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchIdRoute = ResearchIdRouteImport.update({
+  id: '/research/$id',
+  path: '/research/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResearchIndexRoute = ApiResearchIndexRouteImport.update({
+  id: '/api/research/',
+  path: '/api/research/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResearchIdEventsRoute = ApiResearchIdEventsRouteImport.update({
+  id: '/api/research/$id/events',
+  path: '/api/research/$id/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
+  '/research/$id': typeof ResearchIdRoute
+  '/research/': typeof ResearchIndexRoute
+  '/api/research/': typeof ApiResearchIndexRoute
+  '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
+  '/research/$id': typeof ResearchIdRoute
+  '/research': typeof ResearchIndexRoute
+  '/api/research': typeof ApiResearchIndexRoute
+  '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +85,42 @@ export interface FileRoutesById {
   '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
+  '/research/$id': typeof ResearchIdRoute
+  '/research/': typeof ResearchIndexRoute
+  '/api/research/': typeof ApiResearchIndexRoute
+  '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/tavily' | '/telem' | '/events/jensen-huang'
+  fullPaths:
+    | '/'
+    | '/tavily'
+    | '/telem'
+    | '/events/jensen-huang'
+    | '/research/$id'
+    | '/research/'
+    | '/api/research/'
+    | '/api/research/$id/events'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/tavily' | '/telem' | '/events/jensen-huang'
-  id: '__root__' | '/' | '/tavily' | '/telem' | '/events/jensen-huang'
+  to:
+    | '/'
+    | '/tavily'
+    | '/telem'
+    | '/events/jensen-huang'
+    | '/research/$id'
+    | '/research'
+    | '/api/research'
+    | '/api/research/$id/events'
+  id:
+    | '__root__'
+    | '/'
+    | '/tavily'
+    | '/telem'
+    | '/events/jensen-huang'
+    | '/research/$id'
+    | '/research/'
+    | '/api/research/'
+    | '/api/research/$id/events'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +128,10 @@ export interface RootRouteChildren {
   TavilyRoute: typeof TavilyRoute
   TelemRoute: typeof TelemRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
+  ResearchIdRoute: typeof ResearchIdRoute
+  ResearchIndexRoute: typeof ResearchIndexRoute
+  ApiResearchIndexRoute: typeof ApiResearchIndexRoute
+  ApiResearchIdEventsRoute: typeof ApiResearchIdEventsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +164,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsJensenHuangRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/research/': {
+      id: '/research/'
+      path: '/research'
+      fullPath: '/research/'
+      preLoaderRoute: typeof ResearchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research/$id': {
+      id: '/research/$id'
+      path: '/research/$id'
+      fullPath: '/research/$id'
+      preLoaderRoute: typeof ResearchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/research/': {
+      id: '/api/research/'
+      path: '/api/research'
+      fullPath: '/api/research/'
+      preLoaderRoute: typeof ApiResearchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/research/$id/events': {
+      id: '/api/research/$id/events'
+      path: '/api/research/$id/events'
+      fullPath: '/api/research/$id/events'
+      preLoaderRoute: typeof ApiResearchIdEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +200,10 @@ const rootRouteChildren: RootRouteChildren = {
   TavilyRoute: TavilyRoute,
   TelemRoute: TelemRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
+  ResearchIdRoute: ResearchIdRoute,
+  ResearchIndexRoute: ResearchIndexRoute,
+  ApiResearchIndexRoute: ApiResearchIndexRoute,
+  ApiResearchIdEventsRoute: ApiResearchIdEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

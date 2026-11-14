@@ -62,6 +62,25 @@ function Home() {
 				</section>
 
 				<Link
+					to="/research"
+					className="group rounded-2xl border border-zinc-800 p-6 transition-colors hover:border-emerald-400/50"
+				>
+					<span className="text-xs font-medium uppercase tracking-wider text-emerald-400">
+						Research agent
+					</span>
+					<div className="mt-2 text-xl font-medium">
+						Event → market impact{" "}
+						<span className="text-zinc-500 group-hover:text-emerald-400">
+							→
+						</span>
+					</div>
+					<p className="mt-2 text-sm text-zinc-500">
+						Type an event; an agent maps people, tickers and a news timeline
+						onto real intraday prices.
+					</p>
+				</Link>
+
+				<Link
 					to="/events/jensen-huang"
 					className="group rounded-2xl border border-zinc-800 p-6 transition-colors hover:border-emerald-400/50"
 				>

@@ -51,7 +51,12 @@ export type AgentEvent = {
 };
 
 export type RunOutcome =
-	| { ok: true; result: ResearchResult; durationMs: number; usage?: { inputTokens: number; outputTokens: number } }
+	| {
+			ok: true;
+			result: ResearchResult;
+			durationMs: number;
+			usage?: { inputTokens: number; outputTokens: number };
+	  }
 	| { ok: false; error: string; durationMs: number };
 
 export type PriceSeries = {
