@@ -90,6 +90,7 @@ const fmtTime = new Intl.DateTimeFormat("en-US", {
 	minute: "2-digit",
 });
 export function formatEventTime(time: string) {
+	if (Number.isNaN(new Date(time).getTime())) return "unknown time";
 	return isDateOnly(time)
 		? `${fmtDate.format(new Date(time))} · date only`
 		: `${fmtTime.format(new Date(time))} PT`;

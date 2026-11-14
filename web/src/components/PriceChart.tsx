@@ -40,8 +40,10 @@ const fmtHour = new Intl.DateTimeFormat("en-US", {
 });
 const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: PT });
 
+// A blank or malformed timestamp from the agent must not crash the page.
 export function formatPT(t: number | string) {
-	return `${fmtTime.format(new Date(t))} PT`;
+	const d = new Date(t);
+	return Number.isNaN(d.getTime()) ? "unknown time" : `${fmtTime.format(d)} PT`;
 }
 
 export type ChartSeries = {
