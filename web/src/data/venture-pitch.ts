@@ -135,22 +135,6 @@ export const PRODUCT_SHORT = [
 	"Benzinga Pro",
 ];
 
-// Why a desk picks us, one line each, as a direct contrast.
-export const REASONS = [
-	{
-		t: "Answers, not feeds.",
-		b: `Terminals and news feeds hand you headlines to read. Ripple reads them for you: people, tickers, timeline and posts in about ${RUN_SECONDS} seconds.`,
-	},
-	{
-		t: "The signal they don't carry.",
-		b: "Xiaohongshu, Douyin, Weibo and Zhihu posts, placed on the same minute clock as the price. The incumbents advertise X/Twitter at most.",
-	},
-	{
-		t: "Nothing held back.",
-		b: "Every seat gets the full agent, every source and the same HTTP API our own app uses, so a team can wire it into its own agents and dashboards.",
-	},
-];
-
 const SEATS = 325_000;
 export const SIZING = [
 	{

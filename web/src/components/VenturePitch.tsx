@@ -4,7 +4,6 @@ import {
 	COMPARE,
 	PRO_MO,
 	PRODUCT_SHORT,
-	REASONS,
 	RUN_COST,
 	RUN_COUNT,
 	RUN_SECONDS,
@@ -92,32 +91,14 @@ export function VenturePitch() {
 						<Fact v={`${RUN_SECONDS} s`} l="median, headline to brief" />
 						<Fact v="60%" l="gross margin on every plan" />
 					</dl>
+					<PricingCta />
 				</div>
 				<Painting />
 			</div>
 
-			<ol className="mt-14 grid grid-cols-1 gap-8 border-t border-[var(--rule)] pt-10 md:grid-cols-3">
-				{REASONS.map((r, i) => (
-					<li key={r.t} className="flex flex-col gap-2">
-						<span className="font-mono text-xs text-[var(--seal)]">
-							{String(i + 1).padStart(2, "0")}
-						</span>
-						<span className="font-serif text-xl">{r.t}</span>
-						<p className="text-sm leading-relaxed text-[var(--muted)]">{r.b}</p>
-					</li>
-				))}
-			</ol>
 			<Compare />
-			<div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
-				<Link
-					to="/pricing"
-					className="inline-flex items-center gap-2 rounded-full bg-[var(--seal)] px-6 py-3 text-base font-medium text-[var(--paper)] hover:bg-[var(--ink)]"
-				>
-					See pricing →
-				</Link>
-				<span className="text-sm text-[var(--muted)]">
-					Free to start. Pro ${PRO_MO} a month. Every capability on every plan.
-				</span>
+			<div className="mt-8">
+				<PricingCta />
 			</div>
 
 			<div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-2">
@@ -173,6 +154,22 @@ export function VenturePitch() {
 				<Sources />
 			</div>
 		</section>
+	);
+}
+
+function PricingCta() {
+	return (
+		<div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
+			<Link
+				to="/pricing"
+				className="inline-flex items-center gap-2 rounded-full bg-[var(--seal)] px-6 py-3 text-base font-medium text-[var(--paper)] hover:bg-[var(--ink)]"
+			>
+				See pricing →
+			</Link>
+			<span className="text-sm text-[var(--muted)]">
+				Free to start. Every capability on every plan.
+			</span>
+		</div>
 	);
 }
 
