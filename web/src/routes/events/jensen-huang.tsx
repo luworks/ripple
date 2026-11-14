@@ -43,16 +43,17 @@ function ViewSwitcher({ current }: { current: View }) {
 	return (
 		<nav
 			aria-label="View"
-			className="fixed top-1/2 right-1 z-40 flex -translate-y-1/2 flex-col gap-1 sm:right-2"
+			className="fixed top-1/2 right-0 z-40 flex -translate-y-1/2 flex-col gap-1 sm:right-2"
 		>
 			{(Object.keys(VIEWS) as View[]).map((v) => (
 				<Link
 					key={v}
 					to="/events/jensen-huang"
 					search={v === "live" ? {} : { view: v }}
+					activeOptions={{ exact: true }}
 					aria-label={VIEWS[v].label}
 					aria-current={v === current ? "page" : undefined}
-					className="group relative flex size-7 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+					className="group relative flex h-7 w-4 items-center sm:w-7 justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
 				>
 					<span
 						className={`block size-2.5 rounded-full border transition ${
