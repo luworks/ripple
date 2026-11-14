@@ -15,6 +15,7 @@ import { Route as TelemRouteImport } from './routes/telem'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
 import { Route as ResearchIndexRouteImport } from './routes/research/index'
 import { Route as ResearchIdRouteImport } from './routes/research/$id'
+import { Route as StockNvdaRouteImport } from './routes/stock/nvda'
 import { Route as ApiResearchIndexRouteImport } from './routes/api/research/index'
 import { Route as ApiResearchIdEventsRouteImport } from './routes/api/research/$id/events'
 
@@ -48,6 +49,11 @@ const ResearchIdRoute = ResearchIdRouteImport.update({
   path: '/research/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StockNvdaRoute = StockNvdaRouteImport.update({
+  id: '/stock/nvda',
+  path: '/stock/nvda',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiResearchIndexRoute = ApiResearchIndexRouteImport.update({
   id: '/api/research/',
   path: '/api/research/',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
+  '/stock/nvda': typeof StockNvdaRoute
   '/research/': typeof ResearchIndexRoute
   '/api/research/': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
+  '/stock/nvda': typeof StockNvdaRoute
   '/research': typeof ResearchIndexRoute
   '/api/research': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
+  '/stock/nvda': typeof StockNvdaRoute
   '/research/': typeof ResearchIndexRoute
   '/api/research/': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
+    | '/stock/nvda'
     | '/research/'
     | '/api/research/'
     | '/api/research/$id/events'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
+    | '/stock/nvda'
     | '/research'
     | '/api/research'
     | '/api/research/$id/events'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
+    | '/stock/nvda'
     | '/research/'
     | '/api/research/'
     | '/api/research/$id/events'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   TelemRoute: typeof TelemRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
   ResearchIdRoute: typeof ResearchIdRoute
+  StockNvdaRoute: typeof StockNvdaRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
   ApiResearchIndexRoute: typeof ApiResearchIndexRoute
   ApiResearchIdEventsRoute: typeof ApiResearchIdEventsRoute
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stock/nvda': {
+      id: '/stock/nvda'
+      path: '/stock/nvda'
+      fullPath: '/stock/nvda'
+      preLoaderRoute: typeof StockNvdaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/research/': {
       id: '/api/research/'
       path: '/api/research'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   TelemRoute: TelemRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
   ResearchIdRoute: ResearchIdRoute,
+  StockNvdaRoute: StockNvdaRoute,
   ResearchIndexRoute: ResearchIndexRoute,
   ApiResearchIndexRoute: ApiResearchIndexRoute,
   ApiResearchIdEventsRoute: ApiResearchIdEventsRoute,

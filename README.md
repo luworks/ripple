@@ -42,3 +42,10 @@ The site header lives in `web/src/components/SiteHeader.tsx`; don't add page-lev
 - CLI test: `docker run --rm --read-only --tmpfs /tmp -e OPENAI_API_KEY -e TELEM_API_KEY -e TAVILY_API_KEY brain0-agent "Jensen Huang resigns as Nvidia CEO"`.
 - Model and effort: `AGENT_MODEL` (default `gpt-5.4-mini`), `AGENT_EFFORT` (default `low`); timeout `AGENT_TIMEOUT_MS` (240 s).
 - The web server runs it via `web/src/server/agent-runner.ts`; charts re-fetch prices from Yahoo and never use numbers from the model.
+
+## Market data
+
+`uv run scripts/fetch_stock.py NVDA ./data/market` saves every Yahoo Finance interval
+(1m … 1mo) as Parquet under `data/market/NVDA/` (gitignored) and merges with earlier runs.
+Yahoo keeps 1m bars for ~30 days and 2m–30m for 60 days, so run it weekly to keep them.
+`/stock/nvda` reads those files (`MARKET_DATA_DIR`, default `../data/market` from `web/`).
