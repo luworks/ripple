@@ -18,6 +18,13 @@ bearer_token_env_var = "TELEM_API_KEY"
 http_headers = { "X-Telem-Auto-Routing" = "accuracy" }
 tool_timeout_sec = 90
 
+# Hackathon Telem (separate prod deployment; its keys only work here, dev keys only on mcp.telem.ai).
+[mcp_servers.telem_hack]
+url = "https://hack.telem.ai/mcp"
+bearer_token_env_var = "TELEM_HACK_API_KEY"
+http_headers = { "X-Telem-Auto-Routing" = "accuracy" }
+tool_timeout_sec = 90
+
 [mcp_servers.tavily]
 url = "https://mcp.tavily.com/mcp/"
 bearer_token_env_var = "TAVILY_API_KEY"

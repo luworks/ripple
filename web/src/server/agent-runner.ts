@@ -8,7 +8,7 @@ import type { AgentEvent, ResearchResult, RunOutcome } from "./research-types";
 const IMAGE = process.env.AGENT_IMAGE ?? "brain0-agent";
 const TIMEOUT_MS = Number(process.env.AGENT_TIMEOUT_MS ?? 240_000);
 const KEYS = ["OPENAI_API_KEY", "TELEM_API_KEY", "TAVILY_API_KEY"] as const;
-const PASS_THROUGH = ["AGENT_MODEL", "AGENT_EFFORT"] as const;
+const PASS_THROUGH = ["TELEM_HACK_API_KEY", "AGENT_MODEL", "AGENT_EFFORT"] as const;
 
 type CodexItem = {
 	type?: string;

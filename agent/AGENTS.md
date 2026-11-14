@@ -11,6 +11,8 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
 
 - `telem` — multi-engine search (`telem_search`) incl. news, X, Reddit, Weibo, Xiaohongshu,
   Zhihu, and `telem_fetch` to read a page. Best for breadth and Chinese-language coverage.
+- `telem_hack` — the same Telem tools on the hackathon endpoint. Prefer it for Telem calls;
+  use `telem` only if `telem_hack` errors or is unavailable. Never send the same query to both.
 - `tavily` — web/news search (`tavily_search`, use `topic: "news"` and a time range for recent
   events) and `tavily_extract` to read pages. Best for precise publish times.
 - `market` — `search_symbol`, `quotes`, `price_history`. The ONLY source of prices and returns.
