@@ -1,50 +1,150 @@
 import { BRAND } from "#/brand";
-import { RUN, SIZING, SOURCES, TABLE } from "#/data/venture-pitch";
+import {
+	COMPARE,
+	PRICE_MO,
+	RUN_COST,
+	RUN_SECONDS,
+	RUNS_INCLUDED,
+	SIZING,
+	SOURCES,
+} from "#/data/venture-pitch";
 
-/* The investor screen on the home page: who pays, why us, how big, why now.
-   Every competitor number and market figure is in src/data/venture-pitch.ts
-   with its public source; nothing here is typed in by hand. */
+/* The investor screen on the home page, hung like the /telem gallery but in
+   ink wash: one painting, one sentence, a price list against the incumbents,
+   then market size and why now. Numbers and sources live in venture-pitch.ts. */
+
+const vars = {
+	"--paper": "#f3ede1",
+	"--ink": "#1c1a17",
+	"--muted": "#6b645a",
+	"--rule": "#d8cfbe",
+	"--seal": "#b0362a",
+} as React.CSSProperties;
+
+const KICKER =
+	"font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[11px]";
 
 export function VenturePitch() {
+	const margin = Math.round((1 - (RUNS_INCLUDED * RUN_COST) / PRICE_MO) * 100);
 	return (
-		<section id="pitch" className="flex scroll-mt-20 flex-col gap-10">
-			<div className="flex max-w-3xl flex-col gap-3">
-				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
-					The business
-				</span>
-				<h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-					Desks pay for the first minutes after a headline.
-				</h2>
-				<p className="leading-relaxed text-zinc-400">
-					Terminals sell wires and transcripts. {BRAND} sells the answer to "is
-					it real, who said it first, and what does it hit" in about a minute,
-					including the Chinese social platforms where many supply chain stories
-					break first.
-				</p>
+		<section
+			id="pitch"
+			style={vars}
+			className="-mx-4 scroll-mt-20 bg-[var(--paper)] px-5 py-12 text-[var(--ink)] sm:mx-0 sm:rounded-2xl sm:px-10 sm:py-16"
+		>
+			<div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+				<div className="flex flex-col gap-5">
+					<span className={KICKER}>The business · 生意</span>
+					<h2 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
+						Terminal-grade answers at{" "}
+						<em className="text-[var(--seal)]">1/27</em> the price.
+					</h2>
+					<p className="max-w-xl leading-relaxed text-[var(--muted)]">
+						Event-driven desks pay for the first minutes after a headline.{" "}
+						{BRAND} tells them whether it is real, who said it first and what it
+						hits, with Chinese social posts on the same clock as the price. We
+						sell it as the second screen next to the Terminal, not a
+						replacement.
+					</p>
+					<dl className="grid grid-cols-3 gap-4 border-t border-[var(--rule)] pt-5">
+						<Fact v={`$${PRICE_MO}`} l="per seat / month" />
+						<Fact v={`$${RUN_COST.toFixed(2)}`} l="measured cost / run" />
+						<Fact v={`${margin}%`} l={`margin at ${RUNS_INCLUDED} runs`} />
+					</dl>
+				</div>
+				<figure className="flex flex-col gap-2">
+					<img
+						src="/art/pitch/river.webp"
+						alt="Chinese ink wash painting: three heavy junks drift on a misty river while one small boat ahead leaves ripples across the water."
+						className="w-full rounded-sm shadow-[0_1px_0_var(--rule)]"
+						loading="lazy"
+						width={1200}
+						height={800}
+					/>
+					<figcaption className="text-xs italic text-[var(--muted)]">
+						Three heavy junks, one light boat. Its ripples cross the whole
+						river.
+					</figcaption>
+				</figure>
 			</div>
 
-			<div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-800 md:grid-cols-3">
-				<Answer
-					k="Who pays"
-					t="Event-driven desks"
-					b="Hedge fund analysts, PMs and traders, plus IR and comms teams watching their own ticker. Per seat, with an API for quant and risk teams."
-				/>
-				<Answer
-					k="Why us"
-					t="Chinese social, priced on one clock"
-					b="Posts from Xiaohongshu, Douyin, X and more sit next to minute bars of the exposed tickers. Every line links to its source and UTC time."
-				/>
-				<Answer k="How big" t={SIZING.headline} b={SIZING.short} />
+			<div className="mt-14 flex flex-col gap-4">
+				<span className={KICKER}>How it compares · 比较</span>
+				<ul className="flex flex-col">
+					{COMPARE.map((c) => (
+						<li
+							key={c.name}
+							className={`grid grid-cols-1 gap-1 border-b border-[var(--rule)] py-4 sm:grid-cols-[12rem_11rem_1fr] sm:gap-6 ${c.us ? "text-[var(--ink)]" : ""}`}
+						>
+							<span className="flex items-center gap-2 font-serif text-lg">
+								{c.us && (
+									<span className="inline-block h-2 w-2 rounded-full bg-[var(--seal)]" />
+								)}
+								{c.name}
+							</span>
+							<span
+								className={`font-mono text-sm sm:pt-1 ${c.us ? "font-semibold text-[var(--seal)]" : c.price === "not public" ? "italic text-[var(--muted)]" : ""}`}
+							>
+								{c.price}
+							</span>
+							<span className="text-sm leading-relaxed text-[var(--muted)] sm:pt-0.5">
+								{c.line}
+							</span>
+						</li>
+					))}
+				</ul>
 			</div>
 
-			<Comparison />
-
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-				<Sizing />
-				<WhyNow />
+			<div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-2">
+				<div className="flex flex-col gap-4">
+					<span className={KICKER}>How big · 规模, bottom-up</span>
+					<ol className="flex flex-col">
+						{SIZING.map((s) => (
+							<li
+								key={s.label}
+								className="flex items-baseline justify-between gap-4 border-b border-[var(--rule)] py-3"
+							>
+								<span className="text-sm">
+									{s.label}
+									<span className="block text-xs text-[var(--muted)]">
+										{s.note}
+									</span>
+								</span>
+								<span className="shrink-0 font-mono">{s.value}</span>
+							</li>
+						))}
+					</ol>
+				</div>
+				<div className="flex flex-col gap-4">
+					<span className={KICKER}>Why now · 时机</span>
+					<ul className="flex flex-col gap-4 text-sm leading-relaxed text-[var(--muted)]">
+						<li>
+							<b className="font-medium text-[var(--ink)]">
+								One API, 37 platforms.
+							</b>{" "}
+							Telem puts X, Reddit and 8 Chinese platforms behind one key.
+							Before, each was its own scraper and login.
+						</li>
+						<li>
+							<b className="font-medium text-[var(--ink)]">
+								Agents got cheap enough to run per headline.
+							</b>{" "}
+							One measured run: {RUN_SECONDS} seconds and ${RUN_COST.toFixed(2)}{" "}
+							in model and search fees. The same headline is cached for every
+							customer after the first run.
+						</li>
+						<li>
+							<b className="font-medium text-[var(--ink)]">
+								Social moves prices in minutes.
+							</b>{" "}
+							In the replay above, the first resignation post landed about 3
+							minutes after NVDA started to fall.
+						</li>
+					</ul>
+				</div>
 			</div>
 
-			<p className="text-xs leading-relaxed text-zinc-600">
+			<p className="mt-12 text-[11px] leading-relaxed text-[var(--muted)]">
 				Sources:{" "}
 				{SOURCES.map((s, i) => (
 					<span key={s.href}>
@@ -53,132 +153,24 @@ export function VenturePitch() {
 							href={s.href}
 							target="_blank"
 							rel="noreferrer"
-							className="underline decoration-zinc-700 underline-offset-2 hover:text-zinc-400"
+							className="underline decoration-[var(--rule)] underline-offset-2 hover:text-[var(--ink)]"
 						>
 							{s.label}
 						</a>
 					</span>
 				))}
-				. Competitor features are what their public pages describe; "not public"
-				means we could not find a published figure.
+				. Competitor lines describe their public pages; "not public" means no
+				published price. Painting generated for this page.
 			</p>
 		</section>
 	);
 }
 
-function Answer({ k, t, b }: { k: string; t: string; b: string }) {
+function Fact({ v, l }: { v: string; l: string }) {
 	return (
-		<div className="flex flex-col gap-2 bg-zinc-950 p-6">
-			<span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-				{k}
-			</span>
-			<span className="text-lg font-medium">{t}</span>
-			<p className="text-sm leading-relaxed text-zinc-400">{b}</p>
-		</div>
-	);
-}
-
-function Cell({ v }: { v: string }) {
-	if (v === "yes") return <span className="text-sky-400">Yes</span>;
-	if (v === "no") return <span className="text-zinc-600">No</span>;
-	if (v === "not public")
-		return <span className="text-zinc-600 italic">not public</span>;
-	return <span>{v}</span>;
-}
-
-function Comparison() {
-	return (
-		<div className="flex flex-col gap-3">
-			<h3 className="text-lg font-medium">How it compares</h3>
-			<div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-				<table className="w-full min-w-[640px] border-collapse text-left text-sm">
-					<thead>
-						<tr className="border-b border-zinc-800 text-xs text-zinc-500">
-							<th className="py-2 pr-4 font-normal" />
-							{TABLE.cols.map((c, i) => (
-								<th
-									key={c}
-									className={`py-2 pr-4 font-medium ${i === 0 ? "text-sky-400" : "text-zinc-300"}`}
-								>
-									{c}
-								</th>
-							))}
-						</tr>
-					</thead>
-					<tbody>
-						{TABLE.rows.map((r) => (
-							<tr key={r.label} className="border-b border-zinc-900 align-top">
-								<th className="py-3 pr-4 font-normal text-zinc-400">
-									{r.label}
-								</th>
-								{r.cells.map((v, i) => (
-									<td
-										key={TABLE.cols[i]}
-										className={`py-3 pr-4 ${i === 0 ? "bg-sky-400/5 font-medium" : "text-zinc-300"}`}
-									>
-										<Cell v={v} />
-									</td>
-								))}
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-		</div>
-	);
-}
-
-function Sizing() {
-	return (
-		<div className="flex flex-col gap-4 rounded-2xl border border-zinc-800 p-6">
-			<h3 className="text-lg font-medium">Market size, bottom-up</h3>
-			<ol className="flex flex-col gap-3">
-				{SIZING.steps.map((s) => (
-					<li
-						key={s.label}
-						className="flex items-baseline justify-between gap-4 border-b border-zinc-900 pb-3 last:border-0"
-					>
-						<span className="text-sm text-zinc-400">
-							{s.label}
-							{s.note && (
-								<span className="block text-xs text-zinc-600">{s.note}</span>
-							)}
-						</span>
-						<span className="shrink-0 font-mono text-lg">{s.value}</span>
-					</li>
-				))}
-			</ol>
-		</div>
-	);
-}
-
-function WhyNow() {
-	return (
-		<div className="flex flex-col gap-4 rounded-2xl border border-zinc-800 p-6">
-			<h3 className="text-lg font-medium">Why now</h3>
-			<ul className="flex flex-col gap-3 text-sm leading-relaxed text-zinc-400">
-				<li>
-					<span className="font-medium text-zinc-100">
-						One API, 37 platforms.
-					</span>{" "}
-					Telem puts X, Reddit and 8 Chinese platforms (Weibo, Xiaohongshu,
-					Zhihu, WeChat, Douyin…) behind one key. Before, each was its own
-					scraper and login.
-				</li>
-				<li>
-					<span className="font-medium text-zinc-100">
-						Agents got cheap enough to run per headline.
-					</span>{" "}
-					{RUN.line}
-				</li>
-				<li>
-					<span className="font-medium text-zinc-100">
-						Desks already trade on social.
-					</span>{" "}
-					A single post can move a megacap in minutes; our replay above shows
-					the first posts landing about 3 minutes after the price moved.
-				</li>
-			</ul>
+		<div className="flex flex-col gap-1">
+			<dt className="font-serif text-2xl sm:text-3xl">{v}</dt>
+			<dd className="text-xs text-[var(--muted)]">{l}</dd>
 		</div>
 	);
 }
