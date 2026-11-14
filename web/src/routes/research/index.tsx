@@ -94,13 +94,13 @@ const FEATURED = /jensen|黄仁勋/i;
 // Finished runs shown here: an allowlist, because test and batch runs keep arriving. Each one
 // ran on the Telem-first agent (#32), searched only with Telem (no Tavily), cites at least one
 // social post, finished within ~90 s, and has a Telem trace. The Jensen run is featured.
+// Dropped: runs whose prose contradicts the chart-window move (Apple Q4 "negative" vs AAPL up;
+// Cook succession "weaker than SPY" vs AAPL ahead of SPY).
 const SHOWCASE = [
 	"ee623f94-7d7f-49ef-b3f2-675c8915f8ad", // Jensen Huang resigns — NVDA and AI chips
 	"1d0b4e81-9313-4255-80d3-5cb5d2f510c7", // 台积电 11 月营收
 	"ed1d1e82-e525-4616-b8d4-9bf8d714ad42", // AMD MI450 OpenAI deal
 	"02897ba9-6649-46ed-adb6-c8b02ee34541", // Apple iPhone 18 demand warning
-	"396be6e7-907e-4b8c-bd10-65f38f215802", // 苹果 CEO 库克卸任
-	"17c60ef2-6130-4663-a779-e31af9f71aa0", // Apple Q4 FY2026 earnings
 	"8d456a8d-25f8-4d5a-b34d-4af2df4ef89e", // Tesla robotaxi expansion
 	"f646a134-3762-4021-98ac-087b1cfe28e1", // 小米汽车交付量
 	"9bcc6b90-1e66-487c-95d9-7a94150ddfeb", // 腾讯 2026 Q3 财报
