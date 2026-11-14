@@ -17,6 +17,7 @@ export type RunRow = {
 
 export type RunSummary = Omit<RunRow, "events" | "result"> & {
 	title: string | null;
+	result: ResearchResult | null; // only for finished runs from the real agent
 };
 
 let ready: Promise<void> | undefined;
@@ -115,10 +116,14 @@ export async function listRecentRuns(limit = 20): Promise<RunSummary[]> {
 	await ensureSchema();
 	const rows =
 		await db()`select id, query, status, error, duration_ms, created_at, finished_at,
-		result->'event'->>'title' as title
-		from research_runs order by created_at desc limit ${limit}`;
+		result->'event'->>'title' as title, case when status = 'done' then result end as result
+		from research_runs
+		-- Real runs only: the Docker runner always emits this event; stub/test rows never do.
+		where status = 'running'
+			or events @> '[{"text": "Starting agent container"}]'::jsonb
+		order by created_at desc limit ${limit}`;
 	return rows.map((r) => {
-		const { events: _e, result: _r, ...rest } = toRow(r);
+		const { events: _e, ...rest } = toRow(r);
 		return { ...rest, title: (r.title as string | null) ?? null };
 	});
 }
