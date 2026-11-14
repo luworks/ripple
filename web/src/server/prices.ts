@@ -36,7 +36,13 @@ async function fetchChart(
 	const points: PriceSeries["points"] = [];
 	for (let i = 0; i < ts.length; i++) {
 		const c = closes[i];
-		if (typeof c === "number" && Number.isFinite(c))
+		// Yahoo appends the latest live bar even when p2 is in the past; keep only the window.
+		if (
+			typeof c === "number" &&
+			Number.isFinite(c) &&
+			ts[i] >= p1 &&
+			ts[i] <= p2
+		)
 			points.push({ t: ts[i], c });
 	}
 	if (!points.length) return null;

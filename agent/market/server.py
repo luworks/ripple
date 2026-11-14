@@ -47,7 +47,8 @@ def _bars(symbol: str, start: int, end: int, interval: str) -> tuple[dict, list[
     bars = [
         (t, c, v or 0)
         for t, c, v in zip(res.get("timestamp") or [], q.get("close") or [], q.get("volume") or [])
-        if c is not None
+        # Yahoo appends the latest live bar even when period2 is in the past; keep only the window.
+        if c is not None and start <= t <= end
     ]
     return res["meta"], bars
 
