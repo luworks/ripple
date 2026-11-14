@@ -26,5 +26,7 @@ pnpm dev                        # http://localhost:3070, reads DATABASE_URL from
 pnpm build && PORT=3070 pnpm start   # production; loads ../.env
 ```
 
-Deployed on dev-host as the `brain0-web` systemd user service, exposed tailnet-only via
-`tailscale serve --https=3070` → https://private-host:3070
+On dev-host the `brain0-web` systemd user service runs `vite dev` (HMR) in `./web`,
+exposed tailnet-only via `tailscale serve --https=3070` → https://private-host:3070.
+A `git pull` in `.` goes live immediately; no build or restart needed.
+The site header lives in `web/src/components/SiteHeader.tsx`; don't add page-level headers.
