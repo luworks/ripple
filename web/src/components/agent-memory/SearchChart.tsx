@@ -88,6 +88,11 @@ export function SearchChart({
 	const b = rows[shown];
 	const key = `${grain}|${b.t}`;
 	const detail = details[key];
+	// While the next bucket loads, keep the last one on screen (dimmed) so the page
+	// never collapses and jumps.
+	const lastDetail = useRef(detail);
+	if (detail) lastDetail.current = detail;
+	const view = detail ?? lastDetail.current;
 	const current = useRef({ grain, t: b.t, key });
 	current.current = { grain, t: b.t, key };
 
@@ -225,7 +230,9 @@ export function SearchChart({
 									type="button"
 									key={r.t}
 									aria-label={`${bucketLabel(r.t, grain)}: ${total(r)} searches`}
-									onMouseEnter={() => setHover(i)}
+									// pointermove, not mouseenter: scrolling past a still cursor fires
+									// mouseenter on each bar and would re-render the page mid-scroll.
+									onPointerMove={() => hover !== i && setHover(i)}
 									onFocus={() => setHover(i)}
 									onClick={() => setHover(i)}
 									className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
@@ -262,12 +269,14 @@ export function SearchChart({
 				className={`flex flex-col gap-8 border-t border-zinc-800 pt-6 transition-opacity ${detail ? "" : "opacity-50"}`}
 			>
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-					<TopDomains detail={detail} />
-					<Queries detail={detail} />
+					<TopDomains detail={view} />
+					<Queries detail={view} />
 				</div>
 				<div className="flex flex-col gap-3">
 					<Label>Sessions in this slot</Label>
-					{detail && <Sessions key={key} sessions={detail.sessions} />}
+					{view && (
+						<Sessions key={`${grain}|${view.t}`} sessions={view.sessions} />
+					)}
 				</div>
 			</div>
 		</div>
