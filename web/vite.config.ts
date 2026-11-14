@@ -9,7 +9,7 @@ import { defineConfig } from "vite";
 
 const config = defineConfig({
 	resolve: { tsconfigPaths: true },
-	// Dev server is reached through `tailscale serve` (https://private-host:3070).
+	// Allow the dev server behind a private reverse proxy.
 	server: { allowedHosts: [".ts.net"] },
 	plugins: [
 		devtools(),

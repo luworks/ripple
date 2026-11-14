@@ -220,3 +220,16 @@ __marimo__/
 .streamlit/secrets.toml
 /data/
 /.playwright-cli/
+
+# Private data: never commit databases, dumps, market data, or credentials
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.pem
+*.key
+*.p12
+.env.*
+!.env.example
+.dev.vars*

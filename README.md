@@ -26,9 +26,6 @@ pnpm dev                        # http://localhost:3070, reads DATABASE_URL from
 pnpm build && PORT=3070 pnpm start   # production; loads ../.env
 ```
 
-On dev-host the `brain0-web` systemd user service runs `vite dev` (HMR) in `./web`,
-exposed tailnet-only via `tailscale serve --https=3070` → https://private-host:3070.
-A `git pull` in `.` goes live immediately; no build or restart needed.
 The site header lives in `web/src/components/SiteHeader.tsx`; don't add page-level headers.
 
 ## Research agent (`agent/`)
@@ -45,7 +42,7 @@ The site header lives in `web/src/components/SiteHeader.tsx`; don't add page-lev
 
 ## Market data
 
-`uv run scripts/fetch_stock.py NVDA ./data/market` saves every Yahoo Finance interval
+`uv run scripts/fetch_stock.py NVDA data/market` saves every Yahoo Finance interval
 (1m … 1mo) as Parquet under `data/market/NVDA/` (gitignored) and merges with earlier runs.
 Yahoo keeps 1m bars for ~30 days and 2m–30m for 60 days, so run it weekly to keep them.
 `/stock/nvda` reads those files (`MARKET_DATA_DIR`, default `../data/market` from `web/`).
