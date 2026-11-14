@@ -17,7 +17,8 @@ function Home() {
 
 	return (
 		<main className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
-			<div className="mx-auto flex max-w-3xl flex-col gap-16 px-4 py-20 sm:px-6 sm:py-28">
+			<SiteHeader />
+			<div className="mx-auto flex max-w-3xl flex-col gap-16 px-4 py-16 sm:px-6 sm:py-24">
 				<header className="flex flex-col gap-6">
 					<span className="w-fit rounded-full border border-zinc-800 px-3 py-1 text-xs tracking-wide text-zinc-400">
 						Hackathon · 2026
@@ -84,5 +85,39 @@ function Stat({ label, value }: { label: string; value: string }) {
 			<dt className="text-zinc-500">{label}</dt>
 			<dd className="mt-1 font-mono text-zinc-100">{value}</dd>
 		</div>
+	);
+}
+
+function SiteHeader() {
+	return (
+		<header className="sticky top-0 z-10 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur">
+			<div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+				<a href="/" className="text-lg font-semibold tracking-tight">
+					brain<span className="text-emerald-400">0</span>
+				</a>
+				<div className="flex items-center gap-3">
+					<div className="text-right leading-tight">
+						<div className="text-sm font-medium">sorastats</div>
+						<div className="text-xs text-zinc-500">Yuan Lu · Discord</div>
+					</div>
+					<div className="flex -space-x-3">
+						<img
+							src="/avatar-discord.webp"
+							alt="sorastats Discord avatar"
+							width={40}
+							height={40}
+							className="h-10 w-10 rounded-full object-cover ring-2 ring-zinc-950"
+						/>
+						<img
+							src="/avatar-yuan.webp"
+							alt="Yuan Lu"
+							width={40}
+							height={40}
+							className="h-10 w-10 rounded-full object-cover ring-2 ring-zinc-950"
+						/>
+					</div>
+				</div>
+			</div>
+		</header>
 	);
 }
