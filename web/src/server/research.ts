@@ -30,7 +30,12 @@ export const listShowcaseRuns = createServerFn({ method: "GET" })
 			listRecentRuns(data.ids.length, data.ids),
 			listRecentRuns(20),
 		]);
-		return [...recent.filter((r) => r.status === "running"), ...picked];
+		// A run killed by a server restart stays "running" in the DB; the agent times out at
+		// 240 s, so anything older than 5 minutes is not really in progress.
+		const live = (r: (typeof recent)[number]) =>
+			r.status === "running" &&
+			Date.now() - Date.parse(r.createdAt) < 5 * 60_000;
+		return [...recent.filter(live), ...picked];
 	});
 
 export const getPrices = createServerFn({ method: "GET" })

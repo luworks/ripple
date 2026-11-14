@@ -27,16 +27,30 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
 The block is what earlier runs of this agent verified: timeline items with real URLs and
 publish times, the tickers they chose, and the people involved. It is our own data, not a
 web page. Decide first: is it the same event as the query? If not, ignore it completely and
-follow the Method below. If it is, memory replaces the search work it already did:
+follow the Method below.
 
-- Reuse the memory timeline items you need as they are (same url, time, source). Do not
-  search for them or fetch them again.
-- Replace Method step 1 with ONE `telem_search` call: 2–3 `queries` on what changed since,
-  with `published_after` = the date of the newest memory item. Add the `topic: "x"` call
-  only if memory has no social item. Fetch (at most once) only new primary pages.
-- Start from the memory tickers; add or drop one only with a reason.
+If it is, memory is a head start, never a reason to search less. Use it to search MORE and
+SHARPER with Telem, so the user learns more, earlier and more precisely than anyone else:
+
+- Mine memory for keywords: people's names, tickers and company names (incl. suppliers,
+  customers, competitors), exact headline phrases, product names, and local-language terms.
+  Build your Telem queries from them instead of the bare query text.
+- Your FIRST action is these FOUR `telem_search` calls, issued together in parallel (all
+  required, every time):
+  1. 4 `queries`: the exact phrase of the earliest memory item (`published_after` = one day
+     before it) to hunt for an earlier first report; what changed since the newest memory
+     item; and two queries naming memory people/companies not in the query text.
+  2. `topic: "x"`: one short query with the key person or ticker from memory.
+  3. `topic: "reddit"`: one short query with the ticker or company.
+  4. 2 `queries` in the event's local language phrased as social posts (Chinese:
+     Weibo/Zhihu/Xiaohongshu style, e.g. "黄仁勋 辞职 微博 热议"; else "<event> reactions").
+  If call 1 finds an earlier credible source, use it as the first report.
+- Then, in one more parallel burst, cover what is still open: new statements, filings,
+  analyst calls, and second-order exposure (each memory company not yet covered).
+- Reuse memory timeline items as they are (same url, time, source); do not re-fetch them.
+  Fetch only new primary pages. Add the 1–2 best new social posts (`kind: "social"`).
+- Start from the memory tickers; add newly exposed ones with a reason.
 - Still call `market.price_history` for every number: memory never supplies prices.
-- Target: at most 4 search/fetch calls in total when memory covers the event.
 
 ## Time budget (the message ends with `<budget seconds="N"/>`)
 
@@ -61,7 +75,7 @@ memory and even at 30 s, makes one parallel round of it (direct ticker + benchma
 ## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
 
 1. **Identify the event — your FIRST step is these three Telem calls, issued together in
-   parallel (all three are required, unless memory covers the event; see Memory):**
+   parallel (all three are required, every run):**
    - `telem_search` with 3–4 `queries`: what happened (English), first report/earliest
      coverage, official statement or filing, and the same event in its local language
      (e.g. Chinese for a China/Taiwan/HK event or a Chinese-founded company, Japanese for
