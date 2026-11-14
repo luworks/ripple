@@ -1,15 +1,57 @@
 // Investor screen data. Every competitor and market number has a public source
 // in SOURCES (checked Nov 14, 2026). "not public" = no published figure found.
 
-// Our price: $99 per seat per month, 300 fresh runs included, cached runs free.
-export const PRICE_MO = 99;
-export const RUNS_INCLUDED = 300;
+// Cost of one fresh run, measured on our own runs (Nov 14, 2026):
+// - Model: one metered gpt-5.4-mini run used 341,065 input tokens (296,448
+//   cached) + 5,514 output = $0.08 at OpenAI list price with 5 searches. The
+//   average run does 7.2 searches, so ~$0.11.
+// - Telem: across 43 finished runs, 7.2 searches a run got hits from providers
+//   12.9 times (~$0.07 at Telem list price); empty answers are billed too, and
+//   3.6 page fetches add ~$0.01. Call it $0.09.
+// - +10% for retries and failed runs. Total ~$0.22. Cached briefs cost ~$0.
+export const RUN_COST = 0.22;
+export const RUN_SECONDS = 56; // median of 43 runs; p90 92 s
+// Price = cost / (1 - 60% margin), after card fees (2.9% + $0.30).
+export const RUN_PRICE = 0.55;
+export const PRO_MO = 49;
+export const DESK_MO = 199;
 
-// One live run ("Jensen Huang resigns as Nvidia CEO", Nov 14, 2026, gpt-5.4-mini):
-// 341,065 input tokens (296,448 cached) + 5,514 output = ~$0.08 at OpenAI list
-// price; 5 Telem searches + 1 fetch = ~$0.03 at Telem list price. 84 s end to end.
-export const RUN_COST = 0.11;
-export const RUN_SECONDS = 84;
+// Plans differ only in how many fresh runs they include.
+export const PLANS = [
+	{
+		name: "Free",
+		tag: "Try it on today's headlines",
+		price: "$0",
+		note: "Free forever",
+		runs: 5,
+		cta: "Start free",
+	},
+	{
+		name: "Pro",
+		tag: "For one analyst",
+		price: `$${PRO_MO}`,
+		note: "Per seat / month",
+		runs: 80,
+		cta: "Get Pro",
+	},
+	{
+		name: "Desk",
+		tag: "For all-day event trading",
+		price: `$${DESK_MO}`,
+		note: "Per seat / month",
+		runs: 330,
+		cta: "Get Desk",
+	},
+];
+
+export const EVERY_PLAN = [
+	"The full research agent, no feature gates",
+	"Unlimited cached briefs",
+	"37 platforms through Telem, 8 of them Chinese",
+	"Minute-level prices for every exposed ticker",
+	"A source URL and UTC time on every line",
+	"HTTP API: POST /api/research, live events over SSE",
+];
 
 // "yes" = documented capability; "—" = not advertised on their public pages.
 export const PRODUCTS = [
@@ -24,7 +66,7 @@ export const MATRIX: { label: string; cells: string[] }[] = [
 	{
 		label: "Price per seat",
 		cells: [
-			`$${PRICE_MO} / mo`,
+			`$0 – $${DESK_MO} / mo`,
 			"$2,665 / mo",
 			"Quote",
 			"Quote",
@@ -37,7 +79,7 @@ export const MATRIX: { label: string; cells: string[] }[] = [
 	},
 	{
 		label: "Type a headline, get a sourced brief in about a minute",
-		cells: [`${RUN_SECONDS} s, measured`, "—", "—", "—", "—"],
+		cells: [`${RUN_SECONDS} s median`, "—", "—", "—", "—"],
 	},
 	{
 		label: "Chinese social: Xiaohongshu, Douyin, Weibo, Zhihu",
@@ -52,8 +94,8 @@ export const MATRIX: { label: string; cells: string[] }[] = [
 		cells: ["yes", "—", "—", "Document citations", "—"],
 	},
 	{
-		label: "Every capability in every seat, no tiers",
-		cells: ["yes", "—", "—", "—", "3 tiers"],
+		label: "Every capability on every plan",
+		cells: ["yes", "—", "—", "—", "Gated by tier"],
 	},
 	{
 		label: "The same API our own app uses, included",
@@ -77,15 +119,6 @@ export const REASONS = [
 	},
 ];
 
-export const INCLUDED = [
-	"The research agent, unlimited cached briefs",
-	`${RUNS_INCLUDED} fresh runs a month, then $0.25 a run`,
-	"37 platforms through Telem, 8 of them Chinese",
-	"Minute-level prices for every exposed ticker",
-	"A source URL and UTC time on every line",
-	"HTTP API: POST /api/research, live events over SSE",
-];
-
 const SEATS = 325_000;
 export const SIZING = [
 	{
@@ -94,14 +127,14 @@ export const SIZING = [
 		value: "325,000",
 	},
 	{
-		label: "× Price per seat per year",
-		note: `$${PRICE_MO} a month, sold as the second screen next to the Terminal`,
-		value: `$${(PRICE_MO * 12).toLocaleString("en-US")}`,
+		label: "× Desk plan per year",
+		note: `$${DESK_MO} a month, sold as the second screen next to the Terminal`,
+		value: `$${(DESK_MO * 12).toLocaleString("en-US")}`,
 	},
 	{
 		label: "= Seat market",
 		note: "Before metered API revenue from quant and risk teams",
-		value: `$${Math.round((SEATS * PRICE_MO * 12) / 1e6)}M / yr`,
+		value: `$${Math.round((SEATS * DESK_MO * 12) / 1e6)}M / yr`,
 	},
 	{
 		label: "Market-data spend, 2025",

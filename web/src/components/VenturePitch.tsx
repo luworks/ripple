@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { BRAND } from "#/brand";
 import {
-	PRICE_MO,
+	PRO_MO,
 	REASONS,
 	RUN_COST,
 	RUN_SECONDS,
-	RUNS_INCLUDED,
 	SIZING,
 	SOURCES,
 } from "#/data/venture-pitch";
@@ -67,7 +66,6 @@ export function Sources() {
 }
 
 export function VenturePitch() {
-	const margin = Math.round((1 - (RUNS_INCLUDED * RUN_COST) / PRICE_MO) * 100);
 	return (
 		<section
 			id="pitch"
@@ -79,7 +77,7 @@ export function VenturePitch() {
 					<span className={KICKER}>Why {BRAND}</span>
 					<h2 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
 						Terminal-grade answers at{" "}
-						<em className="text-[var(--seal)]">1/27</em> the price.
+						<em className="text-[var(--seal)]">1/54</em> the price.
 					</h2>
 					<p className="max-w-xl leading-relaxed text-[var(--muted)]">
 						Event-driven desks pay for the first minutes after a headline. A
@@ -87,9 +85,9 @@ export function VenturePitch() {
 						real, who said it first, what does it hit.
 					</p>
 					<dl className="grid grid-cols-3 gap-4 border-t border-[var(--rule)] pt-5">
-						<Fact v={`$${PRICE_MO}`} l="per seat / month" />
-						<Fact v={`${RUN_SECONDS} s`} l="headline to brief" />
-						<Fact v={`${margin}%`} l={`margin at ${RUNS_INCLUDED} runs`} />
+						<Fact v={`$${PRO_MO}`} l="per seat / month" />
+						<Fact v={`${RUN_SECONDS} s`} l="median, headline to brief" />
+						<Fact v="60%" l="gross margin on every plan" />
 					</dl>
 				</div>
 				<Painting />
@@ -147,9 +145,9 @@ export function VenturePitch() {
 							<b className="font-medium text-[var(--ink)]">
 								Agents got cheap enough to run per headline.
 							</b>{" "}
-							One measured run: {RUN_SECONDS} seconds and ${RUN_COST.toFixed(2)}{" "}
-							in model and search fees. The same headline is cached for every
-							customer after the first run.
+							Across 43 runs: {RUN_SECONDS} seconds median and about $
+							{RUN_COST.toFixed(2)} in model and search fees. The same headline
+							is cached for every customer after the first run.
 						</li>
 						<li>
 							<b className="font-medium text-[var(--ink)]">

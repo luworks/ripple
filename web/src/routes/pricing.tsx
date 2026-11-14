@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { BRAND } from "#/brand";
-import { inkVars, KICKER, Painting, Sources } from "#/components/VenturePitch";
+import { Sources } from "#/components/VenturePitch";
 import {
-	INCLUDED,
+	DESK_MO,
+	EVERY_PLAN,
 	MATRIX,
-	PRICE_MO,
+	PLANS,
 	PRODUCTS,
-	REASONS,
+	RUN_PRICE,
 } from "#/data/venture-pitch";
 
 export const Route = createFileRoute("/pricing")({
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/pricing")({
 			{ title: `Pricing · ${BRAND}` },
 			{
 				name: "description",
-				content: `${BRAND} is $${PRICE_MO} per seat per month, every capability included. How it compares with Bloomberg Terminal, Dataminr, AlphaSense and Benzinga Pro.`,
+				content: `${BRAND} plans from free to $${DESK_MO} per seat per month. Every plan gets every capability. How it compares with Bloomberg Terminal, Dataminr, AlphaSense and Benzinga Pro.`,
 			},
 		],
 	}),
@@ -24,109 +25,131 @@ export const Route = createFileRoute("/pricing")({
 
 function Pricing() {
 	return (
-		<main
-			style={inkVars}
-			className="min-h-screen bg-[var(--paper)] text-[var(--ink)] antialiased"
-		>
-			<div className="mx-auto flex max-w-6xl flex-col gap-16 px-5 py-14 sm:px-8 sm:py-20">
-				<section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-					<div className="flex flex-col gap-5">
-						<span className={KICKER}>Pricing</span>
-						<h1 className="font-serif text-4xl leading-tight tracking-tight sm:text-6xl">
-							One plan. <em className="text-[var(--seal)]">Everything</em> in
-							it.
-						</h1>
-						<p className="max-w-xl leading-relaxed text-[var(--muted)]">
-							No tiers, no enterprise-only features, no two-year contract. Every
-							seat gets the whole product and the same API our own app runs on.
-						</p>
-						<Plan />
-					</div>
-					<Painting />
+		<main className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+			<div className="mx-auto flex max-w-6xl flex-col gap-16 px-4 py-14 sm:px-6 sm:py-20">
+				<section className="flex flex-col items-center gap-3 text-center">
+					<h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+						Pricing
+					</h1>
+					<p className="max-w-xl text-zinc-400">
+						Every plan gets every capability. Plans differ only in how many
+						fresh runs they include.
+					</p>
+				</section>
+
+				<section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+					{PLANS.map((p, i) => (
+						<PlanCard
+							key={p.name}
+							name={p.name}
+							tag={p.tag}
+							price={p.price}
+							note={p.note}
+							cta={p.cta}
+							featured={p.name === "Pro"}
+							lead={
+								i === 0 ? null : `Everything in ${PLANS[i - 1].name}, plus:`
+							}
+							items={
+								i === 0
+									? [`${p.runs} fresh runs a month`, ...EVERY_PLAN]
+									: [
+											`${p.runs} fresh runs a month`,
+											`Then $${RUN_PRICE.toFixed(2)} a run`,
+										]
+							}
+						/>
+					))}
+					<PlanCard
+						name="API"
+						tag="For your own agents"
+						price={`$${RUN_PRICE.toFixed(2)}`}
+						note="Per fresh run. Cached briefs are free."
+						cta="Get an API key"
+						lead={null}
+						items={[
+							"No seat fee",
+							"POST /api/research, live events over SSE",
+							"The same agent and sources as every plan",
+						]}
+					/>
 				</section>
 
 				<section className="flex flex-col gap-5">
-					<div className="flex flex-col gap-2">
-						<span className={KICKER}>Side by side</span>
-						<h2 className="font-serif text-3xl tracking-tight sm:text-4xl">
-							What you get that they don't advertise.
-						</h2>
-					</div>
+					<h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+						Compare with the incumbents
+					</h2>
 					<Matrix />
 				</section>
 
-				<section className="grid grid-cols-1 gap-8 border-t border-[var(--rule)] pt-10 md:grid-cols-3">
-					{REASONS.map((r, i) => (
-						<div key={r.t} className="flex flex-col gap-2">
-							<span className="font-mono text-xs text-[var(--seal)]">
-								{String(i + 1).padStart(2, "0")}
-							</span>
-							<span className="font-serif text-xl">{r.t}</span>
-							<p className="text-sm leading-relaxed text-[var(--muted)]">
-								{r.b}
-							</p>
-						</div>
-					))}
-				</section>
-
-				<Sources />
+				<div className="[&_a:hover]:text-zinc-100 [&_a]:decoration-zinc-700 [&_p]:text-zinc-500">
+					<Sources />
+				</div>
 			</div>
 		</main>
 	);
 }
 
-function Plan() {
+function PlanCard(p: {
+	name: string;
+	tag: string;
+	price: string;
+	note: string;
+	cta: string;
+	lead: string | null;
+	items: string[];
+	featured?: boolean;
+}) {
 	return (
-		<div className="flex flex-col gap-4 rounded-sm border border-[var(--rule)] bg-white/40 p-6">
-			<div className="flex items-baseline gap-2">
-				<span className="font-serif text-5xl">${PRICE_MO}</span>
-				<span className="text-sm text-[var(--muted)]">per seat / month</span>
+		<div
+			className={`flex flex-col gap-5 rounded-2xl border p-6 ${p.featured ? "border-zinc-400 bg-zinc-900" : "border-zinc-800 bg-zinc-900/40"}`}
+		>
+			<div className="flex flex-col gap-1">
+				<span className="text-lg font-semibold">{p.name}</span>
+				<span className="text-sm text-zinc-400">{p.tag}</span>
 			</div>
-			<ul className="flex flex-col gap-2 text-sm">
-				{INCLUDED.map((x) => (
+			<div className="flex flex-col gap-1">
+				<span className="text-4xl font-semibold tracking-tight">{p.price}</span>
+				<span className="text-xs text-zinc-500">{p.note}</span>
+			</div>
+			<Link
+				to="/research"
+				className={`rounded-lg px-4 py-2 text-center text-sm font-medium ${p.featured ? "bg-zinc-100 text-zinc-950 hover:bg-white" : "border border-zinc-700 hover:bg-zinc-800"}`}
+			>
+				{p.cta}
+			</Link>
+			<ul className="flex flex-col gap-2 text-sm text-zinc-300">
+				{p.lead && <li className="text-zinc-500">{p.lead}</li>}
+				{p.items.map((x, i) => (
 					<li key={x} className="flex gap-2">
-						<span className="text-[var(--seal)]">✓</span>
-						<span>{x}</span>
+						<span className="text-zinc-500">✓</span>
+						<span className={i === 0 ? "font-medium text-zinc-100" : ""}>
+							{x}
+						</span>
 					</li>
 				))}
 			</ul>
-			<span className="text-xs text-[var(--muted)]">
-				Launch price. Cancel any month.
-			</span>
 		</div>
 	);
 }
 
-function Cell({ v, us }: { v: string; us: boolean }) {
-	if (v === "yes")
-		return (
-			<span
-				className={`text-lg ${us ? "text-[var(--seal)]" : "text-[var(--ink)]"}`}
-			>
-				✓
-			</span>
-		);
-	if (v === "—") return <span className="text-[var(--rule)]">—</span>;
-	return (
-		<span
-			className={us ? "font-medium text-[var(--seal)]" : "text-[var(--muted)]"}
-		>
-			{v}
-		</span>
-	);
+function Cell({ v }: { v: string }) {
+	if (v === "yes") return <span className="text-zinc-100">✓</span>;
+	if (v === "—") return <span className="text-zinc-700">—</span>;
+	return <span className="text-zinc-400">{v}</span>;
 }
 
 function Matrix() {
 	return (
-		<div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+		<div className="overflow-x-auto rounded-2xl border border-zinc-800">
 			<table className="w-full min-w-[720px] border-collapse text-left text-sm">
 				<thead>
-					<tr className="border-b border-[var(--ink)]">
-						<th className="sticky left-0 bg-[var(--paper)] py-3 pr-4 font-normal" />
+					<tr className="border-b border-zinc-800">
+						<th className="sticky left-0 bg-zinc-950 p-4 font-normal" />
 						{PRODUCTS.map((p, i) => (
 							<th
 								key={p}
-								className={`px-3 py-3 font-serif text-base font-normal ${i === 0 ? "bg-[var(--seal)] text-[var(--paper)]" : ""}`}
+								className={`p-4 font-medium ${i === 0 ? "bg-zinc-900 text-zinc-100" : "text-zinc-400"}`}
 							>
 								{p}
 							</th>
@@ -135,16 +158,19 @@ function Matrix() {
 				</thead>
 				<tbody>
 					{MATRIX.map((r) => (
-						<tr key={r.label} className="border-b border-[var(--rule)]">
-							<th className="sticky left-0 max-w-[14rem] bg-[var(--paper)] py-3 pr-4 font-normal">
+						<tr
+							key={r.label}
+							className="border-b border-zinc-800 last:border-0"
+						>
+							<th className="sticky left-0 max-w-[14rem] bg-zinc-950 p-4 font-normal text-zinc-300">
 								{r.label}
 							</th>
 							{r.cells.map((v, i) => (
 								<td
 									key={PRODUCTS[i]}
-									className={`px-3 py-3 ${i === 0 ? "bg-[var(--seal)]/5" : ""}`}
+									className={`p-4 ${i === 0 ? "bg-zinc-900" : ""}`}
 								>
-									<Cell v={v} us={i === 0} />
+									<Cell v={v} />
 								</td>
 							))}
 						</tr>
