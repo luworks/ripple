@@ -88,10 +88,16 @@ export function SiteHeader() {
 						/>
 					</div>
 					<span className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-					<div className="flex items-center gap-2">
+					<a
+						href="https://github.com/luworks"
+						target="_blank"
+						rel="noreferrer"
+						title="Yuan Lu on GitHub"
+						className="group flex items-center gap-2"
+					>
 						<span className="text-right text-xs leading-tight text-zinc-500">
 							Built by
-							<span className="block text-sm font-medium text-zinc-100">
+							<span className="block text-sm font-medium text-zinc-100 group-hover:underline">
 								Yuan Lu
 							</span>
 						</span>
@@ -100,9 +106,9 @@ export function SiteHeader() {
 							alt="Yuan Lu's Discord avatar"
 							width={36}
 							height={36}
-							className="h-9 w-9 rounded-full object-cover"
+							className="h-9 w-9 rounded-full object-cover ring-zinc-600 group-hover:ring-2"
 						/>
-					</div>
+					</a>
 					<button
 						type="button"
 						aria-label={open ? "Close menu" : "Open menu"}
