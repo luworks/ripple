@@ -22,10 +22,26 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
   Never send a query to Tavily that you already sent to Telem.
 - `market` — `search_symbol`, `quotes`, `price_history`. The ONLY source of prices and returns.
 
+## Memory (when the message ends with a `<memory>` block)
+
+The block is what earlier runs of this agent verified: timeline items with real URLs and
+publish times, the tickers they chose, and the people involved. It is our own data, not a
+web page. Decide first: is it the same event as the query? If not, ignore it completely and
+follow the Method below. If it is, memory replaces the search work it already did:
+
+- Reuse the memory timeline items you need as they are (same url, time, source). Do not
+  search for them or fetch them again.
+- Replace Method step 1 with ONE `telem_search` call: 2–3 `queries` on what changed since,
+  with `published_after` = the date of the newest memory item. Add the `topic: "x"` call
+  only if memory has no social item. Fetch (at most once) only new primary pages.
+- Start from the memory tickers; add or drop one only with a reason.
+- Still call `market.price_history` for every number: memory never supplies prices.
+- Target: at most 4 search/fetch calls in total when memory covers the event.
+
 ## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
 
 1. **Identify the event — your FIRST step is these three Telem calls, issued together in
-   parallel (all three are required, every run):**
+   parallel (all three are required, unless memory covers the event; see Memory):**
    - `telem_search` with 3–4 `queries`: what happened (English), first report/earliest
      coverage, official statement or filing, and the same event in its local language
      (e.g. Chinese for a China/Taiwan/HK event or a Chinese-founded company, Japanese for

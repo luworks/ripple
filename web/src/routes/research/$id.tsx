@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MemoryPanel, memoryOf } from "#/components/MemoryPanel";
 import {
 	type ChartSeries,
 	formatPT,
@@ -191,11 +192,13 @@ function Progress({
 							className={
 								e.kind === "error"
 									? "text-rose-300"
-									: e.kind === "tool"
-										? "text-sky-300"
-										: e.kind === "status"
-											? "text-zinc-400"
-											: "text-zinc-200"
+									: e.kind === "memory"
+										? "text-emerald-300"
+										: e.kind === "tool"
+											? "text-sky-300"
+											: e.kind === "status"
+												? "text-zinc-400"
+												: "text-zinc-200"
 							}
 						>
 							{e.text}
@@ -291,6 +294,7 @@ function ResultView({
 			series: bySymbol.get(s) as PriceSeries,
 		}));
 	const timeline = [...r.timeline].sort((a, b) => a.time.localeCompare(b.time));
+	const remembered = new Set(memoryOf(events)?.urls);
 
 	return (
 		<>
@@ -315,6 +319,8 @@ function ResultView({
 					{r.event.summary}
 				</p>
 			</header>
+
+			<MemoryPanel events={events} result={r} durationMs={durationMs} />
 
 			<section>
 				<SectionTitle kicker="Market" title="Price reaction vs. news" />
@@ -503,6 +509,11 @@ function ResultView({
 								<span className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500">
 									{e.kind}
 								</span>
+								{remembered.has(e.url) && (
+									<span className="rounded-md border border-emerald-500/40 px-1.5 py-0.5 text-xs text-emerald-300">
+										from memory
+									</span>
+								)}
 							</div>
 							<h3 className="mt-1 text-lg font-medium">{e.headline}</h3>
 							{e.detail && (

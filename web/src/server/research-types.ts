@@ -46,9 +46,21 @@ export type ResearchResult = {
 // Progress events streamed while the agent runs.
 export type AgentEvent = {
 	at: string; // ISO time
-	kind: "status" | "tool" | "result" | "message" | "error";
+	kind: "status" | "tool" | "result" | "message" | "error" | "memory";
 	text: string; // short human-readable line, e.g. "telem.telem_search: Jensen Huang resigns"
 	call?: ToolCallTrace; // set by the runner from the raw tool call, never by the model
+	memory?: MemoryTrace; // set on the one "memory" event emitted before the agent starts
+};
+
+// What memory recall found before the agent ran, plus the typical run it is compared with.
+export type MemoryTrace = {
+	runs: { id: string; query: string; at: string; similarity: number }[];
+	best: number; // similarity of the closest earlier run, hit or not
+	urls: string[]; // sources handed to the agent
+	tickers: number;
+	ms: number; // recall time
+	// Median over earlier finished runs that had no memory hit.
+	baseline: { runs: number; searchCalls: number; durationMs: number } | null;
 };
 
 // What one search/fetch tool call asked for ("tool" events) or returned ("result" events).

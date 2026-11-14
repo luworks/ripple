@@ -2,6 +2,7 @@
 // and fans live events out to SSE subscribers in this process.
 import { randomUUID } from "node:crypto";
 import { runResearch } from "./agent-runner";
+import { recall } from "./memory";
 import {
 	appendEvent,
 	findCachedRun,
@@ -33,6 +34,34 @@ export function subscribe(id: string, fn: (m: LiveMessage) => void) {
 	if (!run) return null;
 	run.listeners.add(fn);
 	return () => run.listeners.delete(fn);
+}
+
+// Memory first: look up earlier runs on the same event and pass their verified sources
+// to the agent. Recall failing never blocks a run; the agent just searches from scratch.
+async function withMemory(query: string, onEvent: (e: AgentEvent) => void) {
+	const at = new Date().toISOString();
+	try {
+		const m = await recall(query);
+		if (!m) return query;
+		const { runs, urls, tickers, ms } = m.trace;
+		onEvent({
+			at,
+			kind: "memory",
+			text: runs.length
+				? `memory → ${urls.length} verified sources and ${tickers} tickers from ${runs.length} earlier ${runs.length === 1 ? "run" : "runs"} (${ms} ms)`
+				: `memory → nothing on this event yet (closest match ${m.trace.best.toFixed(2)}); searching the web (${ms} ms)`,
+			memory: m.trace,
+		});
+		return m.prompt ? `${query}\n\n${m.prompt}` : query;
+	} catch (err) {
+		console.error("research memory recall", err);
+		onEvent({
+			at,
+			kind: "memory",
+			text: "memory → unavailable; searching the web",
+		});
+		return query;
+	}
 }
 
 export type StartResult =
@@ -106,7 +135,8 @@ export async function startResearch(raw: string): Promise<StartResult> {
 		});
 		let msg: LiveMessage;
 		try {
-			const out = await runResearch(query, onEvent);
+			const prompt = await withMemory(query, onEvent);
+			const out = await runResearch(prompt, onEvent);
 			msg = out.ok
 				? { type: "done", result: out.result, durationMs: out.durationMs }
 				: { type: "error", error: out.error, durationMs: out.durationMs };
