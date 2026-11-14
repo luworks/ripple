@@ -1,0 +1,64 @@
+{
+	"monitorId": "085c4d7e-d1f6-4f12-8f24-1ecf979240eb",
+	"monitorQuery": "News that could move Nvidia (NVDA) after Jensen Huang resigned as CEO: the Q3 earnings report on Nov 17 2026 and its guidance, the CEO search, analyst rating or price-target changes, customer reactions, and the date of Huang's congressional testimony",
+	"predictionRunId": "97fa9c36-ae7f-4ea7-8f93-10c5775d9eb5",
+	"predictionQuery": "What could move NVDA in the week of Nov 16-22, 2026, after Jensen Huang resigned as Nvidia CEO? List scheduled events and likely catalysts with dates.",
+	"defaultFrequency": "6h",
+	"days": [
+		{
+			"from": "2026-11-16",
+			"to": "2026-11-16",
+			"label": "Mon 16",
+			"frequency": "6h",
+			"events": []
+		},
+		{
+			"from": "2026-11-17",
+			"to": "2026-11-17",
+			"label": "Tue 17",
+			"frequency": "1h",
+			"events": [
+				{ "title": "Q3 earnings", "kind": "confirmed" },
+				{ "title": "MS Ignite keynote", "kind": "research" }
+			]
+		},
+		{
+			"from": "2026-11-18",
+			"to": "2026-11-18",
+			"label": "Wed 18",
+			"frequency": "6h",
+			"events": [
+				{ "title": "Kress all-hands", "kind": "research" },
+				{ "title": "Anthropic IPO prices", "kind": "research" }
+			]
+		},
+		{
+			"from": "2026-11-19",
+			"to": "2026-11-19",
+			"label": "Thu 19",
+			"frequency": "6h",
+			"events": [{ "title": "Anthropic starts trading", "kind": "research" }]
+		},
+		{
+			"from": "2026-11-20",
+			"to": "2026-11-20",
+			"label": "Fri 20",
+			"frequency": "12h",
+			"events": []
+		},
+		{
+			"from": "2026-11-21",
+			"to": "2026-11-22",
+			"label": "Sat–Sun",
+			"frequency": "1d",
+			"events": []
+		},
+		{
+			"from": "2026-11-23",
+			"to": "2026-11-26",
+			"label": "Nov 23–26",
+			"frequency": "6h",
+			"events": [{ "title": "Testimony, date TBD", "kind": "confirmed" }]
+		}
+	]
+}

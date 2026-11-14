@@ -1,4 +1,4 @@
-import { bindings, defineConfig, defineContainer, exports } from "cf/config";
+import { bindings, defineConfig, defineContainer, exports, triggers } from "cf/config";
 
 const web = defineContainer({
 	name: "brain0-web",
@@ -20,6 +20,8 @@ export default defineConfig({
 		compatibilityDate: "2026-11-14",
 		workersDev: process.env.CF_ATTACH_DOMAIN !== "1",
 		previewUrls: false,
+		// Hourly: keep the Jensen Huang Telem monitor on the scan plan's rate (worker.mjs).
+		triggers: [triggers.scheduled({ schedule: "7 * * * *" })],
 		domains: process.env.CF_ATTACH_DOMAIN === "1" ? ["search.chaorders.com"] : [],
 		observability: { enabled: true, redactQueryString: true, traces: { enabled: true, headSamplingRate: 0.1 } },
 		exports: {

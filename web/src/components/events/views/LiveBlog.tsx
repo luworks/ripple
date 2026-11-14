@@ -9,6 +9,7 @@ import {
 	TelemStrip,
 } from "#/components/events/Sections";
 import { RemoteImage, TelemCredits } from "#/components/events/Telem";
+import { WhatsNext } from "#/components/events/WhatsNext";
 import { type EventView, events, PHASE } from "#/data/jensen-huang-view";
 
 const upcoming = events.filter((e) => e.phase === "upcoming");
@@ -51,27 +52,7 @@ export function LiveBlog() {
 					<TelemStrip />
 				</header>
 
-				{upcoming.length > 0 && (
-					<section className="mt-10 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5">
-						<h2 className="text-xs font-medium tracking-wider text-amber-300 uppercase">
-							What's next
-						</h2>
-						<ul className="mt-3 flex flex-col gap-4">
-							{upcoming.map((e) => (
-								<li key={e.id} id={e.id} className="scroll-mt-24">
-									<div className="font-mono text-xs text-amber-200/80">
-										{e.when}
-									</div>
-									<div className="mt-1 font-medium">{e.title}</div>
-									<p className="mt-1 text-sm text-zinc-400">{e.detail}</p>
-									<div className="mt-2">
-										<TelemCredits credits={e.credits} compact />
-									</div>
-								</li>
-							))}
-						</ul>
-					</section>
-				)}
+				{upcoming.length > 0 && <WhatsNext upcoming={upcoming} />}
 
 				<ol className="mt-12 flex flex-col">
 					{past.map((e, i) => (

@@ -1,5 +1,6 @@
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
+import plan from "../web/src/data/jensen-huang-scan-plan.json";
 
 export class WebContainer extends Container {
 	defaultPort = 8080;
@@ -8,6 +9,7 @@ export class WebContainer extends Container {
 		HOST: "0.0.0.0", PORT: "8080", NODE_ENV: "production",
 		DATABASE_URL: env.DATABASE_URL,
 		OPENAI_API_KEY: env.OPENAI_API_KEY,
+		TELEM_HACK_API_KEY: env.TELEM_HACK_API_KEY,
 		AGENT_ENDPOINT: `${env.PUBLIC_ORIGIN}/__internal/agent`,
 		AGENT_INTERNAL_TOKEN: env.AGENT_INTERNAL_TOKEN,
 		RESEARCH_DAILY_LIMIT: "10",
@@ -32,7 +34,22 @@ async function equal(a, b) {
 	return crypto.subtle.timingSafeEqual(x, y);
 }
 
+// Hourly: set the Jensen Huang monitor's check rate to the plan's rate for today (PT).
+async function applyScanPlan(key) {
+	const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+	const frequency = plan.days.find((d) => today >= d.from && today <= d.to)?.frequency ?? plan.defaultFrequency;
+	const url = `https://hack.telem.ai/api/v1/monitors/${plan.monitorId}`;
+	const headers = { authorization: `Bearer ${key}`, "content-type": "application/json" };
+	const monitor = await fetch(url, { headers }).then((r) => (r.ok ? r.json() : null));
+	if (!monitor || monitor.status !== "active" || monitor.frequency === frequency) return;
+	const res = await fetch(url, { method: "PATCH", headers, body: JSON.stringify({ frequency }) });
+	console.log(`scan plan: ${monitor.frequency} -> ${frequency} (${res.status})`);
+}
+
 export default {
+	async scheduled(_controller, bindings, ctx) {
+		ctx.waitUntil(applyScanPlan(bindings.TELEM_HACK_API_KEY));
+	},
 	async fetch(request, bindings) {
 		const url = new URL(request.url);
 		if (url.pathname === "/__internal/agent") {
