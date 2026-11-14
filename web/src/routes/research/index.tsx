@@ -91,14 +91,15 @@ const BUDGET_HINT: Record<Budget, string> = {
 	240: "deep, with room for slow sources",
 };
 
-const FEATURED = /jensen|黄仁勋/i;
+const FEATURED = /tesla.*robotaxi/i;
 // Finished runs shown here: an allowlist, because test and batch runs keep arriving. Each one
 // ran on the Telem-first agent (#32), searched only with Telem (no Tavily), cites at least one
-// social post, finished within ~90 s, and has a Telem trace. The Jensen run is featured.
+// social post, finished within ~90 s, and has a Telem trace. The Tesla run is featured: every
+// timeline URL came from its own tool results and its first report (the @robotaxi X post) checks out.
 // Dropped: runs whose prose contradicts the chart-window move (Apple Q4 "negative" vs AAPL up;
-// Cook succession "weaker than SPY" vs AAPL ahead of SPY).
+// Cook succession "weaker than SPY" vs AAPL ahead of SPY) and the Jensen run ee623f94, which named
+// Nvidia's release as the first report although the WSJ exclusive was out the day before.
 const SHOWCASE = [
-	"ee623f94-7d7f-49ef-b3f2-675c8915f8ad", // Jensen Huang resigns — NVDA and AI chips
 	"1d0b4e81-9313-4255-80d3-5cb5d2f510c7", // 台积电 11 月营收
 	"ed1d1e82-e525-4616-b8d4-9bf8d714ad42", // AMD MI450 OpenAI deal
 	"02897ba9-6649-46ed-adb6-c8b02ee34541", // Apple iPhone 18 demand warning
