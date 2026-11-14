@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-export const Route = createFileRoute("/tavily")({
+export const Route = createFileRoute("/tavily/guide")({
 	head: () => ({
 		meta: [
-			{ title: "Tavily, explained in one page · Ripple" },
+			{ title: "Tavily field notes · Ripple" },
 			{
 				name: "description",
 				content:
@@ -320,8 +320,8 @@ function TavilyPage() {
 				<footer className="text-xs text-zinc-600">
 					Ripple · sources: docs.tavily.com and our own API calls on Nov 14,
 					2026 ·{" "}
-					<Link to="/" className="hover:text-zinc-400">
-						back to home
+					<Link to="/tavily" className="hover:text-zinc-400">
+						back to the Tavily overview
 					</Link>
 				</footer>
 			</div>

@@ -15,3 +15,43 @@ body {
   margin: 0;
 }
 
+
+/* Gallery pages (/telem, /tavily). Instrument Serif is OFL-licensed, self-hosted. */
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/instrument-serif-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/instrument-serif-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+/* The painting dissolves into the paper instead of ending at a hard edge. */
+.gallery-art {
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+
+@media (min-width: 1024px) {
+  .gallery-art {
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 3%, #000 46%),
+      linear-gradient(to top, transparent, #000 18%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent 3%, #000 46%),
+      linear-gradient(to top, transparent, #000 18%);
+    mask-composite: intersect;
+  }
+}

@@ -11,12 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentMemoryRouteImport } from './routes/agent-memory'
-import { Route as TavilyRouteImport } from './routes/tavily'
-import { Route as TelemRouteImport } from './routes/telem'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
 import { Route as ResearchIndexRouteImport } from './routes/research/index'
 import { Route as ResearchIdRouteImport } from './routes/research/$id'
 import { Route as StockNvdaRouteImport } from './routes/stock/nvda'
+import { Route as TavilyIndexRouteImport } from './routes/tavily/index'
+import { Route as TavilyGuideRouteImport } from './routes/tavily/guide'
+import { Route as TelemIndexRouteImport } from './routes/telem/index'
+import { Route as TelemGuideRouteImport } from './routes/telem/guide'
 import { Route as ApiResearchIndexRouteImport } from './routes/api/research/index'
 import { Route as ApiResearchIdEventsRouteImport } from './routes/api/research/$id/events'
 
@@ -28,16 +30,6 @@ const IndexRoute = IndexRouteImport.update({
 const AgentMemoryRoute = AgentMemoryRouteImport.update({
   id: '/agent-memory',
   path: '/agent-memory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TavilyRoute = TavilyRouteImport.update({
-  id: '/tavily',
-  path: '/tavily',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TelemRoute = TelemRouteImport.update({
-  id: '/telem',
-  path: '/telem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsJensenHuangRoute = EventsJensenHuangRouteImport.update({
@@ -60,6 +52,26 @@ const StockNvdaRoute = StockNvdaRouteImport.update({
   path: '/stock/nvda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TavilyIndexRoute = TavilyIndexRouteImport.update({
+  id: '/tavily/',
+  path: '/tavily/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TavilyGuideRoute = TavilyGuideRouteImport.update({
+  id: '/tavily/guide',
+  path: '/tavily/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelemIndexRoute = TelemIndexRouteImport.update({
+  id: '/telem/',
+  path: '/telem/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelemGuideRoute = TelemGuideRouteImport.update({
+  id: '/telem/guide',
+  path: '/telem/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiResearchIndexRoute = ApiResearchIndexRouteImport.update({
   id: '/api/research/',
   path: '/api/research/',
@@ -74,24 +86,28 @@ const ApiResearchIdEventsRoute = ApiResearchIdEventsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
-  '/tavily': typeof TavilyRoute
-  '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
+  '/tavily/guide': typeof TavilyGuideRoute
+  '/telem/guide': typeof TelemGuideRoute
   '/research/': typeof ResearchIndexRoute
+  '/tavily/': typeof TavilyIndexRoute
+  '/telem/': typeof TelemIndexRoute
   '/api/research/': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
-  '/tavily': typeof TavilyRoute
-  '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
+  '/tavily/guide': typeof TavilyGuideRoute
+  '/telem/guide': typeof TelemGuideRoute
   '/research': typeof ResearchIndexRoute
+  '/tavily': typeof TavilyIndexRoute
+  '/telem': typeof TelemIndexRoute
   '/api/research': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
@@ -99,12 +115,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agent-memory': typeof AgentMemoryRoute
-  '/tavily': typeof TavilyRoute
-  '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
   '/research/$id': typeof ResearchIdRoute
   '/stock/nvda': typeof StockNvdaRoute
+  '/tavily/guide': typeof TavilyGuideRoute
+  '/telem/guide': typeof TelemGuideRoute
   '/research/': typeof ResearchIndexRoute
+  '/tavily/': typeof TavilyIndexRoute
+  '/telem/': typeof TelemIndexRoute
   '/api/research/': typeof ApiResearchIndexRoute
   '/api/research/$id/events': typeof ApiResearchIdEventsRoute
 }
@@ -113,36 +131,42 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agent-memory'
-    | '/tavily'
-    | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
+    | '/tavily/guide'
+    | '/telem/guide'
     | '/research/'
+    | '/tavily/'
+    | '/telem/'
     | '/api/research/'
     | '/api/research/$id/events'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/agent-memory'
-    | '/tavily'
-    | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
+    | '/tavily/guide'
+    | '/telem/guide'
     | '/research'
+    | '/tavily'
+    | '/telem'
     | '/api/research'
     | '/api/research/$id/events'
   id:
     | '__root__'
     | '/'
     | '/agent-memory'
-    | '/tavily'
-    | '/telem'
     | '/events/jensen-huang'
     | '/research/$id'
     | '/stock/nvda'
+    | '/tavily/guide'
+    | '/telem/guide'
     | '/research/'
+    | '/tavily/'
+    | '/telem/'
     | '/api/research/'
     | '/api/research/$id/events'
   fileRoutesById: FileRoutesById
@@ -150,12 +174,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentMemoryRoute: typeof AgentMemoryRoute
-  TavilyRoute: typeof TavilyRoute
-  TelemRoute: typeof TelemRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
   ResearchIdRoute: typeof ResearchIdRoute
   StockNvdaRoute: typeof StockNvdaRoute
+  TavilyGuideRoute: typeof TavilyGuideRoute
+  TelemGuideRoute: typeof TelemGuideRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
+  TavilyIndexRoute: typeof TavilyIndexRoute
+  TelemIndexRoute: typeof TelemIndexRoute
   ApiResearchIndexRoute: typeof ApiResearchIndexRoute
   ApiResearchIdEventsRoute: typeof ApiResearchIdEventsRoute
 }
@@ -174,20 +200,6 @@ declare module '@tanstack/react-router' {
       path: '/agent-memory'
       fullPath: '/agent-memory'
       preLoaderRoute: typeof AgentMemoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tavily': {
-      id: '/tavily'
-      path: '/tavily'
-      fullPath: '/tavily'
-      preLoaderRoute: typeof TavilyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/telem': {
-      id: '/telem'
-      path: '/telem'
-      fullPath: '/telem'
-      preLoaderRoute: typeof TelemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/jensen-huang': {
@@ -218,6 +230,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StockNvdaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tavily/': {
+      id: '/tavily/'
+      path: '/tavily'
+      fullPath: '/tavily/'
+      preLoaderRoute: typeof TavilyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tavily/guide': {
+      id: '/tavily/guide'
+      path: '/tavily/guide'
+      fullPath: '/tavily/guide'
+      preLoaderRoute: typeof TavilyGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telem/': {
+      id: '/telem/'
+      path: '/telem'
+      fullPath: '/telem/'
+      preLoaderRoute: typeof TelemIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telem/guide': {
+      id: '/telem/guide'
+      path: '/telem/guide'
+      fullPath: '/telem/guide'
+      preLoaderRoute: typeof TelemGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/research/': {
       id: '/api/research/'
       path: '/api/research'
@@ -238,12 +278,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentMemoryRoute: AgentMemoryRoute,
-  TavilyRoute: TavilyRoute,
-  TelemRoute: TelemRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
   ResearchIdRoute: ResearchIdRoute,
   StockNvdaRoute: StockNvdaRoute,
+  TavilyGuideRoute: TavilyGuideRoute,
+  TelemGuideRoute: TelemGuideRoute,
   ResearchIndexRoute: ResearchIndexRoute,
+  TavilyIndexRoute: TavilyIndexRoute,
+  TelemIndexRoute: TelemIndexRoute,
   ApiResearchIndexRoute: ApiResearchIndexRoute,
   ApiResearchIdEventsRoute: ApiResearchIdEventsRoute,
 }

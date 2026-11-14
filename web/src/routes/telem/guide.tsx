@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-export const Route = createFileRoute("/telem")({
+export const Route = createFileRoute("/telem/guide")({
 	head: () => ({
 		meta: [
-			{ title: "Telem, explained in one page · Ripple" },
+			{ title: "Telem field notes · Ripple" },
 			{
 				name: "description",
 				content:
@@ -402,8 +402,8 @@ function TelemPage() {
 				<footer className="text-xs text-zinc-600">
 					Ripple · sources: docs.telem.ai and our own API calls on Nov 14, 2026
 					·{" "}
-					<Link to="/" className="hover:text-zinc-400">
-						back to home
+					<Link to="/telem" className="hover:text-zinc-400">
+						back to the Telem overview
 					</Link>
 				</footer>
 			</div>
