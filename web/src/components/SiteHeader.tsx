@@ -16,6 +16,34 @@ const linkBase =
 	"whitespace-nowrap rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100";
 const linkActive = { className: "bg-zinc-900 text-zinc-100" };
 
+function Partner({
+	href,
+	logo,
+	name,
+}: {
+	href: string;
+	logo: string;
+	name: string;
+}) {
+	return (
+		<a
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			className="inline-flex items-center gap-1 text-zinc-300 hover:text-zinc-100"
+		>
+			<img
+				src={logo}
+				alt=""
+				width={14}
+				height={14}
+				className="h-3.5 w-3.5 rounded-[3px]"
+			/>
+			{name}
+		</a>
+	);
+}
+
 export function SiteHeader() {
 	const [open, setOpen] = useState(false);
 	return (
@@ -42,9 +70,34 @@ export function SiteHeader() {
 					))}
 				</nav>
 				<div className="ml-auto flex shrink-0 items-center gap-3">
+					<Link
+						to="/pricing"
+						onClick={() => setOpen(false)}
+						className={`${linkBase} px-3 py-1.5 text-sm`}
+						activeProps={linkActive}
+					>
+						Pricing
+					</Link>
 					<div className="hidden text-right leading-tight sm:block">
-						<div className="text-sm font-medium">sorastats</div>
-						<div className="text-xs text-zinc-500">Yuan Lu · Discord</div>
+						<div className="text-sm">
+							<span className="text-zinc-500">Built by </span>
+							<span className="font-medium">Yuan Lu</span>
+							<span className="text-zinc-500"> · sorastats on Discord</span>
+						</div>
+						<div className="mt-0.5 flex items-center justify-end gap-1.5 text-xs text-zinc-500">
+							Powered by
+							<Partner
+								href="https://telem.ai"
+								logo="/logos/telem.svg"
+								name="Telem"
+							/>
+							and
+							<Partner
+								href="https://tavily.com"
+								logo="/logos/tavily.svg"
+								name="Tavily"
+							/>
+						</div>
 					</div>
 					<div className="flex -space-x-3">
 						<img
@@ -62,14 +115,6 @@ export function SiteHeader() {
 							className="h-9 w-9 rounded-full object-cover ring-2 ring-zinc-950"
 						/>
 					</div>
-					<Link
-						to="/pricing"
-						onClick={() => setOpen(false)}
-						className={`${linkBase} px-3 py-1.5 text-sm`}
-						activeProps={linkActive}
-					>
-						Pricing
-					</Link>
 					<button
 						type="button"
 						aria-label={open ? "Close menu" : "Open menu"}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!--
+    Telem AI favicon. The brand mark (logos/telem-icon-*.svg) is an off-white
+    stroke on a transparent background, which disappears wherever the icon is
+    composited onto white: Google's search-result circle, a light browser tab,
+    an iOS home screen. This file is the same glyph on a solid tile so it
+    reads on any surface. It is the one favicon for telem.ai, docs.telem.ai
+    and app.telem.ai; the .ico / .png siblings are rendered from it.
+
+    The stroke is heavier than the site mark's 11 (15 here) and the dots are
+    larger (11 vs 9.5) so the mark survives 16px.
+  -->
+  <rect width="200" height="200" rx="44" fill="#070807"/>
+  <g fill="none" stroke="#F5F7EF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"
+     transform="translate(100 100) scale(1.08) translate(-100 -100)">
+    <path d="M150.5 87.4 A52 52 0 0 1 63.9 137.4"/>
+    <path d="M49.5 112.6 A52 52 0 0 1 136.1 62.6"/>
+    <path d="M44 125.5 H76 V108.5 H100 V91.5 H124 V74.5 H156"/>
+    <circle cx="44" cy="125.5" r="11" fill="#0581FE" stroke="none"/>
+    <circle cx="156" cy="74.5" r="11" fill="#F54D25" stroke="none"/>
+  </g>
+</svg>
