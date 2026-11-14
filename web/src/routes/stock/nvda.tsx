@@ -7,6 +7,7 @@ import type {
 } from "lightweight-charts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timeline } from "#/data/jensen-huang-timeline";
+import newsData from "#/data/nvda-news.json";
 import {
 	type Bar,
 	getBars,
@@ -14,7 +15,6 @@ import {
 	INTERVALS,
 	type Interval,
 	type Packed,
-	type Post,
 	unpack,
 } from "#/server/stock";
 
@@ -59,8 +59,7 @@ const lcModule =
 const TZ = "America/New_York";
 const at = (iso: string) => Date.parse(iso) / 1000;
 
-// Figures read off the 1-minute bars; prior close is Nov 11's regular-session close.
-const PREV_CLOSE = 173.73;
+// Figures read off the 1-minute bars.
 const DAY_LOW = { t: at("2026-11-12T14:31:00Z"), price: 148.8 };
 const DAY_CLOSE = 166.19;
 const FIRST_ALERT = at("2026-11-12T13:52:29Z");
@@ -72,7 +71,26 @@ const BANDS = [
 	{ from: REBOUND_ZONE[0], to: REBOUND_ZONE[1], cls: "bg-emerald-500/15" },
 ];
 const REPLAY_VIEW = [at("2026-11-12T13:30:00Z"), at("2026-11-12T15:35:00Z")];
-const DAY2 = at("2026-11-12T09:00:00Z"); // 04:00 ET, pre-market open on Nov 12
+// Hover cards show "what if you acted here" for times in this window (the scandal week up to
+// Nov 12's close), measured against Nov 12's low and close.
+const OUTCOME_WINDOW = [at("2026-11-08T00:00:00Z"), at("2026-11-12T21:00:00Z")];
+
+// One dot on a strip above the chart: a Telem post or a news story.
+type Item = {
+	t: number;
+	source: string;
+	title: string;
+	url: string;
+	minute?: boolean;
+};
+
+const news: Item[] = newsData.news.map((n) => ({
+	t: at(n.t),
+	source: n.source,
+	title: n.title,
+	url: n.url,
+	minute: n.precision === "minute",
+}));
 
 type Pin = { t: number; n: string; title: string; detail: string };
 
@@ -80,33 +98,40 @@ const pricePins: Pin[] = [
 	{
 		t: at("2026-11-11T21:55:00Z"),
 		n: "1",
-		title: "After-hours drop",
+		title: "NYT story, first after-hours drop",
 		detail:
-			"$174.58 to $168.26 in 4 minutes, $159.17 by 18:10 (−8.8%). Telem had no related post yet.",
+			"The New York Times publishes at 16:55:36 ET; $174.58 to $168.26 by 16:59 (−3.6%).",
 	},
 	{
-		t: at("2026-11-12T13:49:00Z"),
+		t: at("2026-11-11T22:28:00Z"),
 		n: "2",
-		title: "Second drop, pre-market",
+		title: "WSJ scoop, after-hours low",
 		detail:
-			"$159.00 to $154.66 in 5 minutes, 3 minutes before Telem's first post.",
+			"WSJ: the board is preparing to oust Huang (17:28 ET). $165.27 to $156.46 in one minute (−5.3%), −10.4% from 16:54.",
+	},
+	{
+		t: at("2026-11-12T13:48:00Z"),
+		n: "3",
+		title: "Resignation announced, pre-market",
+		detail:
+			"$159.00 to $154.66 by 08:54. First wire post on X at 08:49:33; 8-K accepted 08:52:41.",
 	},
 	{
 		t: at("2026-11-12T14:30:00Z"),
-		n: "3",
+		n: "4",
 		title: "Open at $149.27",
 		detail: "−14.1% vs. the $173.73 prior close.",
 	},
 	{
 		t: DAY_LOW.t,
-		n: "4",
+		n: "5",
 		title: "Day low $148.80",
 		detail:
 			"One minute after the open, during the busiest stretch of Telem posts.",
 	},
 	{
 		t: at("2026-11-12T14:58:00Z"),
-		n: "5",
+		n: "6",
 		title: "Rebound to $162.72",
 		detail: "+9.4% in 27 minutes from the low.",
 	},
@@ -122,7 +147,8 @@ const dayPins: Pin[] = timeline.map((e, i) => ({
 
 const insights = [
 	{
-		label: "Sell on Telem's first alert (8:52:29 ET; $155.21 at 8:53)",
+		label:
+			"Sell on Telem's first resignation post (8:52:29 ET; $155.21 at 8:53)",
 		value: "4.1% loss avoided",
 		note: "vs. the $148.80 low at 9:31; 3.8% vs. the $149.27 open",
 		tone: "good",
@@ -134,33 +160,61 @@ const insights = [
 		tone: "good",
 	},
 	{
-		label: "Missed: Nov 11 after-hours drop at 16:55 ET",
-		value: "−8.8%",
-		note: "$174.58 to $159.17 by 18:10, ~16 h before the first post. Needs SEC 8-K and newswire sources.",
+		label: "Missed: NYT story at 16:55:36 ET, Nov 11",
+		value: "13.1% left on the table",
+		note: "Selling at $171.14 (16:56) vs. the Nov 12 low. Price fell 10.4% by the 17:28 WSJ scoop; Telem's first post on it came at 20:49.",
 		tone: "bad",
 	},
 ] as const;
 
+// t = when to center the chart for that row.
 const leadLag = [
-	[
-		"After-hours drop −8.8%",
-		"Nov 11 16:55",
-		"Nov 12 08:52",
-		"Price led by ~16 h",
-	],
-	[
-		"Pre-market drop −2.9%",
-		"Nov 12 08:49",
-		"Nov 12 08:52:29",
-		"Price led by 3 min",
-	],
-	[
-		"Rebound +9.4%",
-		"Nov 12 09:31",
-		"Busiest posting 09:00–10:00",
-		"In step: peak attention ≈ bottom",
-	],
-] as const;
+	{
+		t: at("2026-11-09T16:03:00Z"),
+		move: "Intraday −2.0%",
+		price: "Nov 9 11:03",
+		news: "NYT 11:02:52",
+		telem: "None",
+		gap: "News in the same minute; Telem missed it",
+		good: false,
+	},
+	{
+		t: at("2026-11-11T21:55:00Z"),
+		move: "After-hours −3.6%",
+		price: "Nov 11 16:55",
+		news: "NYT 16:55:36",
+		telem: "Nov 11 20:49",
+		gap: "News in the same minute; Telem 3 h 54 m later",
+		good: false,
+	},
+	{
+		t: at("2026-11-11T22:28:00Z"),
+		move: "After-hours −5.3%",
+		price: "Nov 11 17:28",
+		news: "WSJ 17:28",
+		telem: "Nov 11 20:49",
+		gap: "News in the same minute; Telem 3 h 21 m later",
+		good: false,
+	},
+	{
+		t: at("2026-11-12T13:48:00Z"),
+		move: "Pre-market −2.9%",
+		price: "Nov 12 08:48",
+		news: "X wire 08:49:33",
+		telem: "Nov 12 08:52:29",
+		gap: "Telem 3 min behind the first wire",
+		good: false,
+	},
+	{
+		t: DAY_LOW.t,
+		move: "Rebound +9.4%",
+		price: "Nov 12 09:31",
+		news: "—",
+		telem: "Peak 09:00–10:00",
+		gap: "In step: peak attention ≈ bottom",
+		good: true,
+	},
+];
 
 const intervals: { id: Interval; label: string; span: string }[] = [
 	{ id: "1m", label: "1m", span: "last ~30 days" },
@@ -193,6 +247,10 @@ const fmtSecPT = fmt(
 	{ hour: "2-digit", minute: "2-digit", second: "2-digit" },
 	"America/Los_Angeles",
 );
+const fmtTimePT = fmt(
+	{ hour: "2-digit", minute: "2-digit" },
+	"America/Los_Angeles",
+);
 const fmtWeekday = fmt({ weekday: "short", month: "short", day: "numeric" });
 const fmtMonthDay = fmt({ month: "short", day: "numeric" });
 const fmtMonth = fmt({ month: "short" });
@@ -210,16 +268,25 @@ function Pct({ v }: { v: number }) {
 }
 
 // Exact time for hover cards: seconds in ET, with PT alongside.
-function Stamp({ t, dayOnly }: { t: number; dayOnly?: boolean }) {
+function Stamp({
+	t,
+	dayOnly,
+	minute,
+}: {
+	t: number;
+	dayOnly?: boolean;
+	minute?: boolean;
+}) {
 	if (dayOnly)
 		return (
 			<div className="font-mono text-zinc-300">{fmtDay.format(t * 1000)}</div>
 		);
 	return (
 		<div className="font-mono text-zinc-200">
-			{fmtSec.format(t * 1000)} ET{" "}
+			{(minute ? fmtTime : fmtSec).format(t * 1000)} ET{" "}
 			<span className="text-zinc-500">
-				· {fmtSecPT.format(t * 1000)} PT · {fmtWeekday.format(t * 1000)}
+				· {(minute ? fmtTimePT : fmtSecPT).format(t * 1000)} PT ·{" "}
+				{fmtWeekday.format(t * 1000)}
 			</span>
 		</div>
 	);
@@ -281,8 +348,9 @@ function NvdaPage() {
 				</h1>
 				<p className="mt-2 max-w-3xl text-sm text-zinc-400">
 					Minute bars around Jensen Huang's resignation, with every post Telem
-					collected. Hover a post or a numbered marker for its exact time and
-					what acting on it would have returned. Times are New York (ET).
+					collected and the news stories behind each sharp move. Hover a dot or
+					a numbered marker for its exact time and what acting on it would have
+					returned. Times are New York (ET).
 				</p>
 
 				<div className="mt-6 flex gap-1 border-b border-zinc-800 text-sm">
@@ -318,7 +386,7 @@ function AlertReplay() {
 	const candles = useRef<ISeriesApi<"Candlestick"> | null>(null);
 	const volume = useRef<ISeriesApi<"Histogram"> | null>(null);
 	const pinEls = useRef<(HTMLDivElement | null)[]>([]);
-	const dotEls = useRef<(HTMLDivElement | null)[]>([]);
+	const dotEls = useRef<Record<string, (HTMLDivElement | null)[]>>({});
 	const bandEls = useRef<(HTMLDivElement | null)[]>([]);
 	const router = useRouter();
 	const { i: interval } = Route.useLoaderDeps();
@@ -329,19 +397,25 @@ function AlertReplay() {
 
 	const isIntraday = intraday(interval);
 	const pins = isIntraday ? pricePins : dayPins;
-	// Posts that fall in the same bar share one dot, so none hide under another.
-	const rugGroups = useMemo(() => {
-		const groups: { i: number; posts: Post[] }[] = [];
-		if (!isIntraday) return groups;
-		for (const p of posts) {
-			const i = snapIndex(bars, p.t);
-			if (i < 0) continue;
-			const g = groups.at(-1);
-			if (g?.i === i) g.posts.push(p);
-			else groups.push({ i, posts: [p] });
-		}
-		return groups;
-	}, [isIntraday, posts, bars]);
+	// Items that fall in the same bar share one dot, so none hide under another.
+	const strips = useMemo(() => {
+		const group = (items: Item[]) => {
+			const groups: { i: number; items: Item[] }[] = [];
+			for (const it of items) {
+				const i = snapIndex(bars, it.t);
+				if (i < 0) continue;
+				const g = groups.at(-1);
+				if (g?.i === i) g.items.push(it);
+				else groups.push({ i, items: [it] });
+			}
+			return groups;
+		};
+		const telem = posts.map((p) => ({ ...p, source: p.platform }));
+		return [
+			{ key: "news", label: "News", color: "violet", groups: group(news) },
+			{ key: "telem", label: "Telem", color: "sky", groups: group(telem) },
+		] as const;
+	}, [posts, bars]);
 
 	// Move pins and post dots to their bars' screen positions; hide off-screen ones.
 	const place = useCallback(() => {
@@ -383,18 +457,19 @@ function AlertReplay() {
 			el.style.top = `${y - 4}px`;
 			edge(el, x);
 		});
-		rugGroups.forEach((g, k) => {
-			const el = dotEls.current[k];
-			if (!el) return;
-			const x = ts.logicalToCoordinate(g.i as Logical);
-			if (x === null || x < 48 || x > w - 70) {
-				el.style.display = "none";
-				return;
-			}
-			el.style.display = "block";
-			el.style.left = `${x}px`;
-			edge(el, x);
-		});
+		for (const strip of strips)
+			strip.groups.forEach((g, k) => {
+				const el = dotEls.current[strip.key]?.[k];
+				if (!el) return;
+				const x = ts.logicalToCoordinate(g.i as Logical);
+				if (x === null || x < 48 || x > w - 70) {
+					el.style.display = "none";
+					return;
+				}
+				el.style.display = "block";
+				el.style.left = `${x}px`;
+				edge(el, x);
+			});
 		const half = ts.options().barSpacing / 2;
 		const paneH = c.panes()[0]?.getHeight() ?? 0;
 		BANDS.forEach((b, k) => {
@@ -412,7 +487,7 @@ function AlertReplay() {
 			el.style.width = `${Math.max(0, Math.min(w - 60, z + half) - left)}px`;
 			el.style.height = `${paneH}px`;
 		});
-	}, [bars, pins, rugGroups, isIntraday]);
+	}, [bars, pins, strips, isIntraday]);
 	const placeRef = useRef(place);
 	placeRef.current = place;
 
@@ -543,26 +618,32 @@ function AlertReplay() {
 	const prev = bars.at(-2);
 	const shown = hover ?? last;
 
-	// "What if you acted here" lines for times on Nov 12. A post is acted on at the close of the
-	// first full minute after it (8:52:29 → the 8:53 bar's close), not at a price seen before it.
-	const outcome = (t: number, post = false) => {
-		if (!isIntraday || t < DAY2) return null;
+	// "What if you acted here" for the scandal week. A post or story is acted on at the close of
+	// the first full minute after it (8:52:29 → the 8:53 bar's close), never at an earlier price.
+	const outcome = (t: number, item = false) => {
+		if (!isIntraday || t < OUTCOME_WINDOW[0] || t > OUTCOME_WINDOW[1])
+			return null;
 		const i = snapIndex(bars, t);
-		const bar = bars[post ? i + 1 : i];
+		const bar = bars[item ? i + 1 : i];
 		if (!bar) return null;
 		const p = bar.close;
 		return (
 			<div className="mt-1.5 border-t border-zinc-700 pt-1.5 text-zinc-300">
-				{post ? "Next full minute" : "Close"} ({fmtTime.format(bar.time * 1000)}
-				): ${p.toFixed(2)}, <Pct v={pct(p, PREV_CLOSE)} /> vs. prior close
+				{item ? "Next full minute" : "Close"} ({fmtTime.format(bar.time * 1000)}
+				): ${p.toFixed(2)}
+				{bar.time < DAY_LOW.t && p > DAY_LOW.price && (
+					<>
+						<br />
+						Sell here: avoids{" "}
+						<span className="text-emerald-400">
+							{(((p - DAY_LOW.price) / p) * 100).toFixed(1)}%
+						</span>{" "}
+						of the drop to the Nov 12 9:31 low
+					</>
+				)}
 				<br />
-				Sell here: avoids{" "}
-				<span className="text-emerald-400">
-					{(((p - DAY_LOW.price) / p) * 100).toFixed(1)}%
-				</span>{" "}
-				of the drop to the 9:31 low
-				<br />
-				Buy here, hold to the ${DAY_CLOSE} close: <Pct v={pct(DAY_CLOSE, p)} />
+				Buy here, hold to the Nov 12 ${DAY_CLOSE} close:{" "}
+				<Pct v={pct(DAY_CLOSE, p)} />
 			</div>
 		);
 	};
@@ -633,26 +714,33 @@ function AlertReplay() {
 				)}
 			</div>
 
-			{isIntraday && (
-				<div className="relative z-30 mt-2 h-8 rounded-t-lg border border-b-0 border-zinc-800 bg-zinc-900/60">
-					<span className="absolute left-2 top-1.5 text-[11px] text-sky-400">
-						Telem
-					</span>
-					{rugGroups.map((g, k) => (
-						<PostDot
-							key={`${g.i}-${g.posts[0].url}`}
-							ref={(el) => {
-								dotEls.current[k] = el;
-							}}
-							posts={g.posts}
-							outcome={outcome(g.posts[0].t, true)}
-						/>
-					))}
-				</div>
-			)}
-			<div
-				className={`relative h-[520px] border border-zinc-800 bg-zinc-950 ${isIntraday ? "rounded-b-lg" : "mt-2 rounded-lg"}`}
-			>
+			<div className="relative z-30 mt-2 rounded-t-lg border border-b-0 border-zinc-800 bg-zinc-900/60">
+				{strips.map((strip) => (
+					<div
+						key={strip.key}
+						className="relative h-7 border-b border-zinc-800/60 last:border-b-0"
+					>
+						<span
+							className={`absolute left-2 top-1.5 text-[11px] ${strip.color === "sky" ? "text-sky-400" : "text-violet-400"}`}
+						>
+							{strip.label}
+						</span>
+						{strip.groups.map((g, k) => (
+							<Dot
+								key={`${g.i}-${g.items[0].url}`}
+								ref={(el) => {
+									dotEls.current[strip.key] ??= [];
+									dotEls.current[strip.key][k] = el;
+								}}
+								items={g.items}
+								color={strip.color}
+								outcome={outcome(g.items[0].t, true)}
+							/>
+						))}
+					</div>
+				))}
+			</div>
+			<div className="relative h-[520px] rounded-b-lg border border-zinc-800 bg-zinc-950">
 				{BANDS.map((b, k) => (
 					<div
 						key={b.from}
@@ -695,6 +783,10 @@ function AlertReplay() {
 				{isIntraday && (
 					<>
 						<span>
+							<i className="mr-1.5 inline-block size-2.5 rounded-full bg-violet-400" />
+							News story (number = stories that minute)
+						</span>
+						<span>
 							<i className="mr-1.5 inline-block size-2.5 rounded-full bg-sky-400" />
 							Telem post (large = first)
 						</span>
@@ -725,12 +817,17 @@ function AlertReplay() {
 			{isIntraday ? (
 				<>
 					<h2 className="mt-8 text-lg font-semibold">Who moved first</h2>
+					<p className="mt-1 text-sm text-zinc-400">
+						Price vs. the first news story and the first Telem post. Click a row
+						to center the chart on it.
+					</p>
 					<div className="mt-3 overflow-x-auto">
-						<table className="w-full min-w-[560px] text-left text-sm">
+						<table className="w-full min-w-[720px] text-left text-sm">
 							<thead className="text-zinc-400">
 								<tr className="border-b border-zinc-800">
 									<th className="py-2 pr-4 font-medium">Price move</th>
 									<th className="py-2 pr-4 font-medium">Price moved (ET)</th>
+									<th className="py-2 pr-4 font-medium">First news (ET)</th>
 									<th className="py-2 pr-4 font-medium">
 										First Telem post (ET)
 									</th>
@@ -738,19 +835,26 @@ function AlertReplay() {
 								</tr>
 							</thead>
 							<tbody>
-								{leadLag.map(([move, price, post, gap], k) => (
-									<tr key={move} className="border-b border-zinc-900">
-										<td className="py-2 pr-4">{move}</td>
+								{leadLag.map((r) => (
+									<tr
+										key={r.move + r.price}
+										onClick={() => centerOn(chart.current, interval, r.t)}
+										className="cursor-pointer border-b border-zinc-900 hover:bg-zinc-900/60"
+									>
+										<td className="py-2 pr-4">{r.move}</td>
 										<td className="py-2 pr-4 font-mono text-zinc-300">
-											{price}
+											{r.price}
 										</td>
-										<td className="py-2 pr-4 font-mono text-zinc-300">
-											{post}
+										<td className="py-2 pr-4 font-mono text-violet-300">
+											{r.news}
+										</td>
+										<td className="py-2 pr-4 font-mono text-sky-300">
+											{r.telem}
 										</td>
 										<td
-											className={`py-2 ${k === 2 ? "text-emerald-400" : "text-red-400"}`}
+											className={`py-2 ${r.good ? "text-emerald-400" : "text-red-400"}`}
 										>
-											{gap}
+											{r.gap}
 										</td>
 									</tr>
 								))}
@@ -788,48 +892,52 @@ function AlertReplay() {
 	);
 }
 
-function PostDot({
+function Dot({
 	ref,
-	posts,
+	items,
+	color,
 	outcome,
 }: {
 	ref: (el: HTMLDivElement | null) => void;
-	posts: Post[];
+	items: Item[];
+	color: "sky" | "violet";
 	outcome: React.ReactNode;
 }) {
-	const first = posts[0].t === FIRST_ALERT;
-	const big = first || posts.length > 1;
+	const first = items[0].t === FIRST_ALERT;
+	const big = first || items.length > 1;
+	const fill =
+		color === "violet" ? "bg-violet-400" : first ? "bg-sky-300" : "bg-sky-400";
 	return (
 		<div
 			ref={ref}
-			className="group absolute top-0 hidden h-8 w-3 -translate-x-1/2 hover:z-30"
+			className="group absolute top-0 hidden h-7 w-3 -translate-x-1/2 hover:z-30"
 		>
 			<a
-				href={posts[0].url}
+				href={items[0].url}
 				target="_blank"
 				rel="noreferrer"
-				className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold text-zinc-950 ring-2 ring-zinc-900 ${big ? "size-4" : "size-2.5"} ${first ? "bg-sky-300" : "bg-sky-400"}`}
+				className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold text-zinc-950 ring-2 ring-zinc-900 ${big ? "size-4" : "size-2.5"} ${fill}`}
 			>
-				{posts.length > 1 ? posts.length : ""}
-				<span className="sr-only">{posts[0].title}</span>
+				{items.length > 1 ? items.length : ""}
+				<span className="sr-only">{items[0].title}</span>
 			</a>
 			<div className={`${CARD} top-[calc(100%+6px)]`}>
 				{first && (
-					<div className="font-semibold text-sky-300">Telem's first alert</div>
+					<div className="font-semibold text-sky-300">
+						Telem's first post on the resignation
+					</div>
 				)}
-				{posts.slice(0, 4).map((p) => (
-					<div key={p.url} className="mt-1 first:mt-0">
-						<Stamp t={p.t} />
+				{items.slice(0, 4).map((it) => (
+					<div key={it.url} className="mt-1 first:mt-0">
+						<Stamp t={it.t} minute={it.minute} />
 						<div className="text-zinc-300">
-							<span className="font-semibold text-zinc-100">{p.platform}</span>{" "}
-							· {p.title}
+							<span className="font-semibold text-zinc-100">{it.source}</span> ·{" "}
+							{it.title}
 						</div>
 					</div>
 				))}
-				{posts.length > 4 && (
-					<div className="mt-1 text-zinc-500">
-						+{posts.length - 4} more posts
-					</div>
+				{items.length > 4 && (
+					<div className="mt-1 text-zinc-500">+{items.length - 4} more</div>
 				)}
 				{outcome}
 			</div>
