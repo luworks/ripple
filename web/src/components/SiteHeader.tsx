@@ -8,14 +8,46 @@ const nav = [
 	{ to: "/stock/nvda", label: "NVDA" },
 	{ to: "/research", label: "Research" },
 	{ to: "/agent-memory", label: "Agent Memory" },
-	{ to: "/telem", label: "Telem" },
-	{ to: "/tavily", label: "Tavily" },
+	{ to: "/telem", label: "Telem", sponsor: true },
+	{ to: "/tavily", label: "Tavily", sponsor: true },
 	{ to: "/pricing", label: "Pricing" },
 ] as const;
 
 const linkBase =
 	"whitespace-nowrap rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100";
 const linkActive = { className: "bg-zinc-900 text-zinc-100" };
+
+// Telem and Tavily sponsor the project. On desktop the pill sits at the top-right corner so
+// it adds no width to the full-width row; in the mobile menu it sits inline.
+const pill =
+	"rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 text-[9px] font-medium uppercase leading-[14px] tracking-wide text-amber-300";
+
+function NavLabel({
+	n,
+	corner,
+}: {
+	n: (typeof nav)[number];
+	corner?: boolean;
+}) {
+	if (!("sponsor" in n)) return n.label;
+	if (corner)
+		return (
+			<>
+				{n.label}
+				<span
+					className={`pointer-events-none absolute -top-2 -right-2 ${pill}`}
+				>
+					Sponsor
+				</span>
+			</>
+		);
+	return (
+		<span className="inline-flex items-center gap-1.5">
+			{n.label}
+			<span className={pill}>Sponsor</span>
+		</span>
+	);
+}
 
 function Partner({
 	href,
@@ -54,10 +86,10 @@ function DesktopNav() {
 				<Link
 					key={n.to}
 					to={n.to}
-					className={`${linkBase} px-3 py-1.5`}
+					className={`${linkBase} relative px-3 py-1.5`}
 					activeProps={linkActive}
 				>
-					{n.label}
+					<NavLabel n={n} corner />
 				</Link>
 			))}
 		</nav>
@@ -155,7 +187,7 @@ export function SiteHeader() {
 							className={`${linkBase} px-3 py-2.5`}
 							activeProps={linkActive}
 						>
-							{n.label}
+							<NavLabel n={n} />
 						</Link>
 					))}
 				</nav>
