@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BRAND } from "#/brand";
 import { GalleryPitch, type Pitch } from "#/components/GalleryPitch";
+import { platformGroups } from "#/data/telem-platforms";
 
 export const Route = createFileRoute("/telem/")({
 	head: () => ({
@@ -27,7 +28,18 @@ const pitch: Pitch = {
 	),
 	lede: "Your agent calls Telem once. Telem routes the request across 11 search engines, 8 page readers and 37 platforms, returns one result shape, and bills each provider at its own price.",
 	facts: [
-		{ value: "37", label: "platforms", note: "小红书, 知乎, X, YouTube…" },
+		{
+			value: "37",
+			label: "platforms",
+			note: "小红书, 知乎, X, YouTube…",
+			detail: {
+				title: "All 37 platforms",
+				groups: platformGroups.map((g) => ({
+					title: g.title,
+					items: g.items.map((p) => (p.zh ? `${p.zh} ${p.name}` : p.name)),
+				})),
+			},
+		},
 		{ value: "0%", label: "markup", note: "provider price, passed through" },
 		{ value: "$20", label: "free credit", note: "added at first sign-in" },
 	],

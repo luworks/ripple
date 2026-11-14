@@ -9,7 +9,13 @@ export type Pitch = {
 	kicker: string;
 	title: React.ReactNode;
 	lede: string;
-	facts: { value: string; label: string; note: string }[];
+	facts: {
+		value: string;
+		label: string;
+		note: string;
+		/** Full list behind the note, shown on hover, focus or tap. */
+		detail?: { title: string; groups: { title: string; items: string[] }[] };
+	}[];
 	cta: { label: string; href: string };
 	setup: { label: string; command: string };
 	painting: { src: string; alt: string; title: string; caption: string };
@@ -105,7 +111,7 @@ export function GalleryPitch({ pitch }: { pitch: Pitch }) {
 function Hero({ pitch }: { pitch: Pitch }) {
 	const p = pitch.painting;
 	return (
-		<section className="relative overflow-hidden">
+		<section className="relative">
 			<img
 				src={p.src}
 				alt={p.alt}
@@ -124,17 +130,22 @@ function Hero({ pitch }: { pitch: Pitch }) {
 						{pitch.title}
 					</h1>
 					<p className="max-w-[31rem] text-lg leading-relaxed">{pitch.lede}</p>
-					<dl className="flex divide-x divide-[var(--rule)]">
+					<dl className="relative flex divide-x divide-[var(--rule)]">
 						{pitch.facts.map((f) => (
 							<div
 								key={f.label}
-								className="flex flex-col-reverse px-4 first:pl-0 sm:px-6"
+								// focusable, so the list also opens from the keyboard and on tap
+								tabIndex={f.detail ? 0 : undefined}
+								className={`group flex flex-col-reverse px-4 outline-none first:pl-0 sm:px-6 ${f.detail ? "cursor-help" : ""}`}
 							>
 								<dt className="mt-1 text-sm leading-tight">
 									<span className="font-medium">{f.label}</span>
-									<span className="block text-xs text-[var(--muted)]">
+									<span
+										className={`block text-xs text-[var(--muted)] ${f.detail ? "underline decoration-dotted underline-offset-2 group-hover:text-[var(--ink)] group-focus-visible:text-[var(--ink)]" : ""}`}
+									>
 										{f.note}
 									</span>
+									{f.detail && <FactDetail detail={f.detail} />}
 								</dt>
 								<dd className="font-display text-4xl leading-none sm:text-5xl">
 									{f.value}
@@ -173,6 +184,44 @@ function Hero({ pitch }: { pitch: Pitch }) {
 				{p.caption}
 			</p>
 		</section>
+	);
+}
+
+/* The whole list behind a fact, as a gallery wall label. It opens upward from
+   the facts row: there is always room above it, on desktop and on a phone. */
+function FactDetail({
+	detail,
+}: {
+	detail: NonNullable<Pitch["facts"][number]["detail"]>;
+}) {
+	return (
+		<span
+			role="tooltip"
+			className="invisible absolute bottom-full left-0 z-20 block w-full max-w-[30rem] pb-3 opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+		>
+			<span className="block cursor-default border border-[var(--rule)] bg-[var(--paper)] px-5 py-4 shadow-[0_18px_40px_-18px_rgba(40,30,10,0.35)]">
+				<span className="block font-display text-xl italic">
+					{detail.title}
+				</span>
+				{detail.groups.map((g) => (
+					<span key={g.title} className="mt-3 block">
+						<span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
+							{g.title} · {g.items.length}
+						</span>
+						<span className="mt-0.5 block text-[13px] leading-relaxed">
+							{g.items.map((item, i) => (
+								<span key={item}>
+									<span className="whitespace-nowrap">
+										{item}
+										{i < g.items.length - 1 && " ·"}
+									</span>{" "}
+								</span>
+							))}
+						</span>
+					</span>
+				))}
+			</span>
+		</span>
 	);
 }
 
@@ -235,7 +284,7 @@ function PriceList({ pitch }: { pitch: Pitch }) {
 	const pr = pitch.price;
 	return (
 		<section className="border-y border-[var(--rule)] bg-[var(--wall)]">
-			<div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+			<div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:py-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
 				<div className="flex min-w-0 flex-col gap-5">
 					<p className={KICKER}>
 						<span className="hidden h-px w-8 bg-current sm:block" />
@@ -266,14 +315,14 @@ function PriceList({ pitch }: { pitch: Pitch }) {
 					<p className="text-sm leading-relaxed text-[var(--muted)]">
 						{pr.foot}
 					</p>
-					<div className="flex items-center gap-3 border border-[var(--rule)] bg-[var(--paper)] px-4 py-3">
-						<code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
+					<div className="flex items-start gap-3 border border-[var(--rule)] bg-[var(--paper)] px-4 py-3">
+						<code className="min-w-0 flex-1 break-words font-mono text-xs leading-relaxed">
 							{pitch.setup.command}
 						</code>
 						<CopyButton
 							text={pitch.setup.command}
 							label="Copy"
-							className="shrink-0 font-mono text-xs uppercase tracking-widest text-[var(--accent)] hover:underline"
+							className="shrink-0 font-mono text-xs uppercase leading-relaxed tracking-widest text-[var(--accent)] hover:underline"
 						/>
 					</div>
 				</div>
