@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
 			{
 				name: "description",
 				content:
-					"Type a market-moving event. Get the people, exposed tickers, a minute-level timeline and the chatter on 21 platforms, every claim linked to its source.",
+					"Type a market-moving event. Get the people, exposed tickers, a minute-level timeline and the chatter from X, Reddit and Chinese social platforms via Telem, every claim linked to its source.",
 			},
 		],
 	}),
@@ -41,8 +41,9 @@ function Home() {
 						</h1>
 						<p className="max-w-xl text-lg leading-relaxed text-zinc-400">
 							Type a market-moving event. In about a minute you get the people,
-							the exposed tickers, a minute-level timeline and the chatter on 21
-							platforms, every claim linked to its source.
+							the exposed tickers, a minute-level timeline and the chatter from
+							X, Reddit and Chinese social platforms via Telem, every claim
+							linked to its source.
 						</p>
 						<SearchBox />
 						<a
@@ -71,8 +72,8 @@ function Home() {
 							one API. Without it, each would be its own scraper and login.
 						</p>
 						<div className="grid grid-cols-3 gap-4 pt-2">
-							<Kpi value="245" label="posts" />
-							<Kpi value="21" label="platforms" />
+							<Kpi value="180" label="relevant posts collected" />
+							<Kpi value="13" label="social platforms" />
 							<Kpi value="~3 min" label="posts after price" />
 						</div>
 					</div>
@@ -143,7 +144,7 @@ const stages = [
 	],
 	[
 		"Retrieve",
-		"Telem searches news and social platforms in one call; Tavily adds precise publish times.",
+		"Telem searches news and social platforms first; Tavily fills in when a publish time is missing.",
 	],
 	[
 		"Rank",

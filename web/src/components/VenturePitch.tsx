@@ -32,7 +32,7 @@ export function VenturePitch() {
 				<Answer
 					k="Why us"
 					t="Chinese social, priced on one clock"
-					b="Weibo, Xiaohongshu, Zhihu and WeChat posts sit next to minute bars of the exposed tickers. Every line links to its source and UTC time."
+					b="Posts from Xiaohongshu, Douyin, X and more sit next to minute bars of the exposed tickers. Every line links to its source and UTC time."
 				/>
 				<Answer k="How big" t={SIZING.headline} b={SIZING.short} />
 			</div>
