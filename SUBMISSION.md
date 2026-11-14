@@ -91,7 +91,7 @@ You choose how long it may search: 30 seconds, 1 minute (the default), 2 or 4 mi
   - Telem, about $0.09: provider calls that returned results across 43 runs, at list price, plus page fetches.
   - We add 10% for retries. Cached briefs cost almost nothing.
 - **Chinese social on the price clock.** Xiaohongshu, Douyin, Weibo and Zhihu posts are collected and linked, and the timestamped ones sit on the same minute timeline as US prices. None of Bloomberg Terminal, Dataminr, AlphaSense or Benzinga Pro advertises this on its public pages.
-- **Sourced pitch.** Every competitor and market number on our home page and pricing page links to a public source.
+- **Sourced pitch.** Every competitor number on our home page and pricing page links to a public source.
 
 ### What we learned
 
@@ -112,8 +112,6 @@ You choose how long it may search: 30 seconds, 1 minute (the default), 2 or 4 mi
 
 Pro costs 1/54 of a Bloomberg Terminal seat ($2,665 a month).
 
-**Market size, bottom-up.** About 325,000 Bloomberg Terminal seats (a proxy for professional market-data users) × the Desk plan at $2,388 a year ($199 × 12) ≈ **$776M a year**, before metered API revenue from quant and risk teams. For scale, $49.2B was spent on financial market data in 2025 (Burton-Taylor).
-
 **Product.**
 
 - Telem monitors that push an alert the moment a story starts spreading.
@@ -124,12 +122,10 @@ Pro costs 1/54 of a Bloomberg Terminal seat ($2,665 a month).
 ## Sources
 
 - Bloomberg Terminal price: https://connect.neugroup.com/public/blogs/bloomberg-terminals-how-much-more-youll-pay-next-year
-- Bloomberg Terminal seats: https://en.wikipedia.org/wiki/Bloomberg_Terminal
 - Bloomberg social sentiment (X/Twitter): https://www.bloomberg.com/company/press/trending-on-twitter-social-sentiment-analytics
 - Dataminr: https://www.dataminr.com/press/announcement/dataminr-announces-100m-investment-from-fortress/
 - AlphaSense contracts (Vendr): https://www.vendr.com/marketplace/alphasense
 - Benzinga Pro prices: https://www.liberatedstocktrader.com/benzinga-discount-coupon-code/
-- Market-data spend 2025 (Burton-Taylor via FOW): https://www.fow.com/insights/market-data-spend-hits-usd49-2bn-as-ai-volatility-and-algos-drive-growth
 - Telem pricing: https://docs.telem.ai/pricing
 - Telem supported platforms: https://docs.telem.ai/resources/supported-platforms/
 - GPT-5.4 mini pricing: https://openai.com/index/introducing-gpt-5-4-mini-and-nano/
@@ -144,4 +140,4 @@ Pro costs 1/54 of a Bloomberg Terminal seat ($2,665 a month).
 ## Before submitting
 
 - [ ] Demo video URL (the home page still shows "Demo video · coming soon").
-- [ ] The live site shows the current prices ($49, $199, $0.55 on /pricing; 1/54 and $776M on the home page).
+- [ ] The live site shows the current prices ($49, $199, $0.55 on /pricing; 1/54 on the home page).

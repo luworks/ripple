@@ -50,7 +50,7 @@ function Home() {
 								href="#pitch"
 								className="text-sm text-zinc-500 hover:text-sky-400"
 							>
-								Investors: who pays, why us, how big ↓
+								Why Ripple ↓
 							</a>
 						</div>
 					</div>
