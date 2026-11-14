@@ -24,6 +24,13 @@ export function SiteHeader() {
 							{n.label}
 						</Link>
 					))}
+					{/* Static research pages live in web/public, so they use a plain link. */}
+					<a
+						href="/research/tavily.html"
+						className="whitespace-nowrap rounded-md px-3 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
+					>
+						Tavily guide
+					</a>
 				</nav>
 			</div>
 		</header>
