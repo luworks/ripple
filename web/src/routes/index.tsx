@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BRAND } from "#/brand";
+import { RippleReplayView } from "#/components/ripple/RippleReplay";
 import { startResearchRun } from "#/server/research";
 
 // Demo video: an .mp4 in web/public (e.g. "/demo.mp4") or a YouTube/Loom embed URL.
@@ -69,7 +70,7 @@ function Home() {
 						</div>
 					</div>
 					<div className="lg:col-span-3">
-						<RippleMap />
+						<RippleReplayView />
 					</div>
 				</section>
 
@@ -235,102 +236,6 @@ function SearchBox() {
 			</div>
 			{err && <p className="text-sm text-rose-400">{err}</p>}
 		</div>
-	);
-}
-
-// Rings: event → people → tickers → platforms. Labels sit on each ring.
-function RippleMap() {
-	const rings = [
-		{
-			r: 95,
-			items: ["Jensen Huang", "Colette Kress", "Harvey Jones"],
-			to: "/events/jensen-huang" as const,
-		},
-		{
-			r: 165,
-			items: ["NVDA", "TSM", "AMD", "AVGO", "MRVL", "SMH"],
-			to: "/stock/nvda" as const,
-		},
-		{
-			r: 230,
-			items: [
-				"X",
-				"Xiaohongshu",
-				"Weibo",
-				"Zhihu",
-				"Reddit",
-				"Douyin",
-				"LinkedIn",
-			],
-			to: "/events/jensen-huang" as const,
-		},
-	];
-	return (
-		<svg
-			viewBox="-300 -260 600 520"
-			className="w-full"
-			role="img"
-			aria-label="Ripple map: event, people, tickers, platforms"
-		>
-			{rings.map((ring, i) => (
-				<circle
-					key={ring.r}
-					r={ring.r}
-					fill="none"
-					stroke="currentColor"
-					className={
-						i === 0
-							? "text-sky-400/50"
-							: i === 1
-								? "text-sky-400/30"
-								: "text-sky-400/15"
-					}
-					strokeWidth={1.5}
-				/>
-			))}
-			<circle r={30} className="fill-sky-400" />
-			<text
-				textAnchor="middle"
-				dy="4"
-				className="fill-zinc-950 text-[11px] font-semibold"
-			>
-				event
-			</text>
-			{rings.map((ring, i) =>
-				ring.items.map((label, j) => {
-					const a =
-						(j / ring.items.length) * Math.PI * 2 - Math.PI / 2 + i * 0.4;
-					const x = Math.cos(a) * ring.r;
-					const y = Math.sin(a) * ring.r;
-					return (
-						<Link key={label} to={ring.to}>
-							<g className="cursor-pointer">
-								<rect
-									x={x - label.length * 3.6 - 8}
-									y={y - 11}
-									width={label.length * 7.2 + 16}
-									height={22}
-									rx={11}
-									className={
-										i === 1
-											? "fill-zinc-900 stroke-sky-400/60"
-											: "fill-zinc-900 stroke-zinc-700"
-									}
-								/>
-								<text
-									x={x}
-									y={y + 4}
-									textAnchor="middle"
-									className={`text-[11px] ${i === 1 ? "fill-sky-300 font-mono" : "fill-zinc-300"}`}
-								>
-									{label}
-								</text>
-							</g>
-						</Link>
-					);
-				}),
-			)}
-		</svg>
 	);
 }
 
