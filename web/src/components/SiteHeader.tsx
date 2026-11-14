@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { BRAND } from "#/brand";
 
 // Logo links home, so there is no separate "Home" item.
@@ -46,107 +46,21 @@ function Partner({
 	);
 }
 
-const GAP = 4; // gap-1 between nav items
-
-// Desktop nav that never scrolls: the items that fit stay in the bar, the rest move
-// into a "More" menu. Widths come from an invisible copy of every item.
+// Every item shows directly from xl (1280px) up; below that the hamburger menu holds them.
 function DesktopNav() {
-	const box = useRef<HTMLDivElement>(null);
-	const ruler = useRef<HTMLDivElement>(null);
-	const [fit, setFit] = useState<number>(nav.length);
-	const [more, setMore] = useState(false);
-
-	useEffect(() => {
-		const b = box.current;
-		const r = ruler.current;
-		if (!b || !r) return;
-		const calc = () => {
-			const els = [...r.children] as HTMLElement[];
-			const moreW = (els.pop() as HTMLElement).offsetWidth;
-			const widths = els.map((e) => e.offsetWidth);
-			const avail = b.clientWidth;
-			const all = widths.reduce((a, w) => a + w, 0) + GAP * (widths.length - 1);
-			if (all <= avail) return setFit(nav.length);
-			let used = moreW;
-			let k = 0;
-			while (k < widths.length && used + GAP + widths[k] <= avail)
-				used += GAP + widths[k++];
-			setFit(k);
-		};
-		const ro = new ResizeObserver(calc);
-		ro.observe(b);
-		document.fonts?.ready.then(calc);
-		calc();
-		return () => ro.disconnect();
-	}, []);
-
-	useEffect(() => {
-		if (!more) return;
-		const close = (e: MouseEvent) => {
-			if (!box.current?.contains(e.target as Node)) setMore(false);
-		};
-		document.addEventListener("mousedown", close);
-		return () => document.removeEventListener("mousedown", close);
-	}, [more]);
-
-	const hidden = nav.slice(fit);
 	return (
-		<div
-			ref={box}
-			className="relative hidden min-w-0 flex-1 items-center gap-1 text-sm lg:flex"
-		>
-			<nav className="flex min-w-0 items-center gap-1 overflow-hidden">
-				{nav.slice(0, fit).map((n) => (
-					<Link
-						key={n.to}
-						to={n.to}
-						className={`${linkBase} px-3 py-1.5`}
-						activeProps={linkActive}
-					>
-						{n.label}
-					</Link>
-				))}
-			</nav>
-			{hidden.length > 0 && (
-				<div className="relative shrink-0">
-					<button
-						type="button"
-						aria-expanded={more}
-						onClick={() => setMore((v) => !v)}
-						className={`${linkBase} px-3 py-1.5`}
-					>
-						More ▾
-					</button>
-					{more && (
-						<div className="absolute left-0 top-full mt-2 flex min-w-40 flex-col gap-0.5 rounded-lg border border-zinc-800 bg-zinc-950 p-1 shadow-xl">
-							{hidden.map((n) => (
-								<Link
-									key={n.to}
-									to={n.to}
-									onClick={() => setMore(false)}
-									className={`${linkBase} px-3 py-2`}
-									activeProps={linkActive}
-								>
-									{n.label}
-								</Link>
-							))}
-						</div>
-					)}
-				</div>
-			)}
-			<div
-				ref={ruler}
-				aria-hidden="true"
-				className="invisible absolute top-0 left-0 flex h-0 w-0 overflow-hidden"
-			>
-				{nav.map((n) => (
-					<span key={n.to} className="shrink-0 whitespace-nowrap px-3 py-1.5">
-						{n.label}
-					</span>
-				))}
-				<span className="shrink-0 whitespace-nowrap px-3 py-1.5">More ▾</span>
-			</div>
-		</div>
+		<nav className="hidden min-w-0 items-center gap-1 text-sm xl:flex">
+			{nav.map((n) => (
+				<Link
+					key={n.to}
+					to={n.to}
+					className={`${linkBase} px-3 py-1.5`}
+					activeProps={linkActive}
+				>
+					{n.label}
+				</Link>
+			))}
+		</nav>
 	);
 }
 
@@ -208,7 +122,7 @@ export function SiteHeader() {
 						aria-expanded={open}
 						aria-controls="site-mobile-nav"
 						onClick={() => setOpen((v) => !v)}
-						className="-mr-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 lg:hidden"
+						className="-mr-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 xl:hidden"
 					>
 						<svg
 							viewBox="0 0 24 24"
@@ -231,7 +145,7 @@ export function SiteHeader() {
 			{open && (
 				<nav
 					id="site-mobile-nav"
-					className="grid grid-cols-2 gap-1 border-t border-zinc-800/80 px-4 py-3 text-sm sm:grid-cols-3 sm:px-6 lg:hidden"
+					className="grid grid-cols-2 gap-1 border-t border-zinc-800/80 px-4 py-3 text-sm sm:grid-cols-3 sm:px-6 xl:hidden"
 				>
 					{nav.map((n) => (
 						<Link
