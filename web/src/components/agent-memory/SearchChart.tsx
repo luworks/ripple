@@ -84,7 +84,10 @@ export function SearchChart({
 	const pending = useRef(new Set<string>());
 	const { grain, rows } = series;
 	const last = rows.length - 1;
-	const shown = Math.min(hover ?? last, last);
+	// Without a hover, show the latest bucket that has searches, not an empty "now".
+	let latest = last;
+	while (latest > 0 && total(rows[latest]) === 0) latest--;
+	const shown = Math.min(hover ?? latest, last);
 	const b = rows[shown];
 	const key = `${grain}|${b.t}`;
 	const detail = details[key];
