@@ -1,0 +1,29 @@
+# Codex config baked into the brain0 research agent image (copied to $CODEX_HOME at start).
+model = "gpt-5.4-mini"
+model_reasoning_effort = "low"
+model_provider = "openai_key"
+approval_policy = "never"
+sandbox_mode = "read-only"
+web_search = "disabled"
+
+[model_providers.openai_key]
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+env_key = "OPENAI_API_KEY"
+wire_api = "responses"
+
+[mcp_servers.telem]
+url = "https://mcp.telem.ai/mcp"
+bearer_token_env_var = "TELEM_API_KEY"
+http_headers = { "X-Telem-Auto-Routing" = "accuracy" }
+tool_timeout_sec = 90
+
+[mcp_servers.tavily]
+url = "https://mcp.tavily.com/mcp/"
+bearer_token_env_var = "TAVILY_API_KEY"
+tool_timeout_sec = 60
+
+[mcp_servers.market]
+command = "/opt/market/.venv/bin/python"
+args = ["/opt/market/server.py"]
+tool_timeout_sec = 60

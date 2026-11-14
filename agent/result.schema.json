@@ -1,0 +1,221 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event",
+    "people",
+    "tickers",
+    "timeline",
+    "market",
+    "impact_summary",
+    "open_questions"
+  ],
+  "properties": {
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "summary",
+        "started_at",
+        "status"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "description": "ISO 8601 UTC time the event first became public"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "developing",
+            "concluded",
+            "upcoming"
+          ]
+        }
+      }
+    },
+    "people": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "role",
+          "relevance"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "relevance": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tickers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "symbol",
+          "name",
+          "relation",
+          "rationale"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Yahoo Finance symbol, e.g. NVDA, 2330.TW, 0700.HK"
+          },
+          "name": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "supplier",
+              "customer",
+              "competitor",
+              "partner",
+              "etf",
+              "other"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "time",
+          "headline",
+          "detail",
+          "kind",
+          "source",
+          "url"
+        ],
+        "properties": {
+          "time": {
+            "type": "string",
+            "description": "ISO 8601 UTC, as precise as the source allows"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "news",
+              "filing",
+              "official",
+              "social",
+              "market",
+              "analyst"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "market": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_start",
+        "window_end",
+        "interval",
+        "benchmarks",
+        "observations"
+      ],
+      "properties": {
+        "window_start": {
+          "type": "string",
+          "description": "ISO 8601 UTC"
+        },
+        "window_end": {
+          "type": "string",
+          "description": "ISO 8601 UTC"
+        },
+        "interval": {
+          "type": "string",
+          "enum": [
+            "1m",
+            "5m",
+            "15m",
+            "1h",
+            "1d"
+          ]
+        },
+        "benchmarks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "symbol",
+              "change_pct",
+              "text"
+            ],
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "change_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "impact_summary": {
+      "type": "string"
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
