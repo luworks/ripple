@@ -1,7 +1,7 @@
 // Search-time budget the user picks per run. Client-safe: the form imports the options.
 export const BUDGETS = [30, 60, 120, 240] as const;
 export type Budget = (typeof BUDGETS)[number];
-export const DEFAULT_BUDGET: Budget = 120;
+export const DEFAULT_BUDGET: Budget = 60;
 
 export function toBudget(v: unknown): Budget {
 	const n = Number(v);

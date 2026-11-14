@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// POST { query, budget? (30|60|120|240 s, default 120) } -> { id, cached } | { error } (400 / 429).
+// POST { query, budget? (30|60|120|240 s, default 60) } -> { id, cached } | { error } (400 / 429).
 export const Route = createFileRoute("/api/research/")({
 	server: {
 		handlers: {
