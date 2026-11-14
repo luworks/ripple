@@ -118,7 +118,7 @@ function Home() {
 							to="/agent-memory"
 							k="Lab"
 							t="Agent Memory"
-							b="Search the web your own agents already read."
+							b="Every search our agents ran, live as new ones land."
 						/>
 					</div>
 				</section>
