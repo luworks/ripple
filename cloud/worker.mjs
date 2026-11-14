@@ -46,6 +46,20 @@ async function applyScanPlan(key) {
 	console.log(`scan plan: ${monitor.frequency} -> ${frequency} (${res.status})`);
 }
 
+// Browser caching for files that are the same for every visitor. Pages, API
+// responses and version.txt stay uncached.
+const STATIC_FILE = /^\/(media|art|fonts|logos)\/|^\/avatar-[^/]+\.webp$/;
+function cacheControl(pathname, status) {
+	if (status === 200 || status === 206 || status === 304) {
+		// Vite puts a content hash in every /assets/ file name.
+		if (pathname.startsWith("/assets/")) return "public, max-age=31536000, immutable";
+		// A deploy can replace these under the same name: fresh for an hour, then
+		// shown from cache while the browser re-checks in the background.
+		if (STATIC_FILE.test(pathname)) return "public, max-age=3600, stale-while-revalidate=86400";
+	}
+	return "private, no-store";
+}
+
 export default {
 	async scheduled(_controller, bindings, ctx) {
 		ctx.waitUntil(applyScanPlan(bindings.TELEM_HACK_API_KEY));
@@ -67,7 +81,8 @@ export default {
 		headers.delete("authorization");
 		const response = await getContainer(bindings.WEB, `site-${bindings.VERSION.id}`).fetch(new Request(request, { headers }));
 		const responseHeaders = new Headers(response.headers);
-		responseHeaders.set("Cache-Control", "private, no-store");
+		const cacheable = request.method === "GET" || request.method === "HEAD";
+		responseHeaders.set("Cache-Control", cacheable ? cacheControl(url.pathname, response.status) : "private, no-store");
 		return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
 	},
 };
