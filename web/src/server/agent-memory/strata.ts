@@ -13,6 +13,8 @@ const DOMAIN_KINDS = ["search_result", ...PAGE_KINDS];
 // Our own smoke tests of the research agent ("cap test a1 9983", "please fail 9298").
 const TEST_RUN = "\\m(test|fail)\\M.*\\d{4,}\\s*$";
 const SEARCH_TOOL = "^(tavily|telem|telem_hack)\\.[a-z_]*search";
+// Every Telem / Tavily call (search or fetch): what memory recall is measured against.
+const WEB_CALL = "^(tavily|telem|telem_hack)\\.";
 const MAX_SESSIONS = 8;
 
 // Who ran a search: a coding agent's built-in web search, or our research agent
@@ -26,6 +28,8 @@ export type Strata = {
 	pages: number;
 	machines: number;
 	first: string; // first PT day with a search, YYYY-MM-DD
+	memoryRuns: number; // research runs that started from memory
+	saved: number; // net web calls those runs skipped against a typical run
 };
 
 export type Grain = "15m" | "hour" | "day";
@@ -51,6 +55,17 @@ export type Cluster = {
 	n: number; // searches in this bucket, before de-duplicating texts
 	searches: Hit[];
 	pages: Page[];
+	memory?: MemoryHit;
+};
+// A research run that started from memory: what recall matched and what it saved.
+export type MemoryHit = {
+	matched: number; // earlier runs recalled
+	best: number; // best similarity
+	reused: number; // timeline sources that came from memory
+	calls: number; // Telem / Tavily calls this run made
+	typicalCalls: number | null;
+	secs: number | null;
+	typicalSecs: number | null;
 };
 export type Detail = {
 	t: string;
@@ -98,7 +113,10 @@ const researchSearches = (sql: Sql, from: Ts) => sql`
 		and e->>'kind' = 'tool' and e->>'text' ~ ${SEARCH_TOOL}
 		and r.query !~* ${TEST_RUN}`;
 
-let strata: Promise<Omit<Strata, "searches"> & { agent: number }> | undefined;
+type Static = Omit<Strata, "searches" | "memoryRuns" | "saved"> & {
+	agent: number;
+};
+let strata: Promise<Static> | undefined;
 
 // Totals: the static agent snapshot (cached) plus every research-agent search so far.
 export const getStrata = createServerFn({ method: "GET" }).handler(
@@ -111,16 +129,30 @@ export const getStrata = createServerFn({ method: "GET" }).handler(
 				(select count(distinct machine) from hackathon_agent_data.demo_events)::int as machines,
 				(select to_char((min(ts) at time zone ${TZ})::date, 'YYYY-MM-DD')
 					from hackathon_agent_data.demo_events where event_type = 'search_operation') as first`;
-			return r as Omit<Strata, "searches"> & { agent: number };
+			return r as Static;
 		})().catch((err) => {
 			strata = undefined;
 			throw err;
 		});
-		const [{ agent, ...s }, [runs]] = await Promise.all([
+		const [{ agent, ...s }, [runs], [mem]] = await Promise.all([
 			strata,
 			sql`select count(*)::int as n from (${researchSearches(sql, "-infinity")}) x`,
+			sql`select count(*)::int as runs,
+					coalesce(sum((m->'baseline'->>'searchCalls')::int - (
+						select count(*) from jsonb_array_elements(r.events) e
+						where e->>'kind' = 'tool' and e->>'text' ~ ${WEB_CALL})), 0)::int as saved
+				from public.research_runs r
+				cross join lateral (select e->'memory' as m from jsonb_array_elements(r.events) e
+					where e->>'kind' = 'memory' limit 1) x
+				where r.status = 'done' and r.query !~* ${TEST_RUN}
+					and jsonb_array_length(coalesce(m->'runs', '[]')) > 0`,
 		]);
-		return { ...s, searches: agent + runs.n };
+		return {
+			...s,
+			searches: agent + runs.n,
+			memoryRuns: mem.runs,
+			saved: mem.saved,
+		};
 	},
 );
 
@@ -254,12 +286,17 @@ async function sessionsIn(sql: Sql, from: Date, to: Date): Promise<Cluster[]> {
 						and u.display_url is not null and u.occurrence_kind = any(${PAGE_KINDS})
 					group by 1 order by 2 limit 12) p) as pages
 			from s`,
-		sql`select r.id, r.query, r.created_at, r.finished_at, r.result,
-				hackathon_agent_data.demo_text_unsafe(r.query) as hidden
+		sql`select r.id, r.query, r.created_at, r.finished_at, r.result, r.duration_ms,
+				hackathon_agent_data.demo_text_unsafe(r.query) as hidden,
+				(select e->'memory' from jsonb_array_elements(r.events) e
+					where e->>'kind' = 'memory' limit 1) as memory,
+				(select count(*) from jsonb_array_elements(r.events) e
+					where e->>'kind' = 'tool' and e->>'text' ~ ${WEB_CALL})::int as calls
 			from public.research_runs r
 			where r.query !~* ${TEST_RUN}
 				and exists (select 1 from jsonb_array_elements(r.events) e
-					where e->>'kind' = 'tool' and e->>'text' ~ ${SEARCH_TOOL}
+					where (e->>'kind' = 'tool' and e->>'text' ~ ${SEARCH_TOOL}
+							or e->>'kind' = 'memory' and jsonb_array_length(coalesce(e->'memory'->'runs', '[]')) > 0)
 						and (e->>'at')::timestamptz >= ${from} and (e->>'at')::timestamptz < ${to})
 				and r.created_at >= ${from}::timestamptz - interval '1 day' and r.created_at < ${to}
 			order by r.created_at desc limit ${MAX_SESSIONS}`,
@@ -317,7 +354,34 @@ async function sessionsIn(sql: Sql, from: Date, to: Date): Promise<Cluster[]> {
 			n: hits.length,
 			searches,
 			pages: r.hidden ? [] : pages,
+			memory: memoryHit(r, items),
 		});
 	}
 	return out.sort((a, b) => b.end.localeCompare(a.end)).slice(0, MAX_SESSIONS);
+}
+
+type MemoryTraceRow = {
+	runs?: { similarity: number }[];
+	best?: number;
+	urls?: string[];
+	baseline?: { searchCalls: number; durationMs: number } | null;
+};
+
+function memoryHit(
+	r: postgres.Row,
+	items: ResultItem[],
+): MemoryHit | undefined {
+	const m = r.memory as MemoryTraceRow | null;
+	if (!m?.runs?.length) return undefined;
+	const known = new Set(m.urls ?? []);
+	const b = m.baseline;
+	return {
+		matched: m.runs.length,
+		best: m.best ?? Math.max(...m.runs.map((x) => x.similarity)),
+		reused: items.filter((it) => it.url && known.has(it.url)).length,
+		calls: r.calls,
+		typicalCalls: b ? b.searchCalls : null,
+		secs: r.duration_ms != null ? Math.round(r.duration_ms / 1000) : null,
+		typicalSecs: b ? Math.round(b.durationMs / 1000) : null,
+	};
 }

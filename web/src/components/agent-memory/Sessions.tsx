@@ -1,5 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import type { Cluster } from "#/server/agent-memory/strata";
+import type { Cluster, MemoryHit } from "#/server/agent-memory/strata";
 
 const TZ = "America/Los_Angeles";
 const time = (iso: string) =>
@@ -77,10 +78,11 @@ function SessionCard({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors ${active ? "border-sky-400/60 bg-zinc-900/60" : "border-zinc-800 hover:border-zinc-600"}`}
+			className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors ${active ? (c.memory ? "border-emerald-400/60 bg-zinc-900/60" : "border-sky-400/60 bg-zinc-900/60") : c.memory ? "border-emerald-500/30 hover:border-emerald-400/50" : "border-zinc-800 hover:border-zinc-600"}`}
 		>
 			<span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-zinc-500">
 				{time(c.start)}
+				{c.memory && <MemoryTag />}
 				{engines.map((e) => (
 					<SourceTag key={e} name={e} />
 				))}
@@ -90,13 +92,64 @@ function SessionCard({
 				{c.who} · {c.n} {c.n === 1 ? "search" : "searches"}
 				{c.pages.length ? ` · ${c.pages.length} pages` : ""}
 			</span>
+			{c.memory && (
+				<span className="text-xs text-emerald-300">{savedLine(c.memory)}</span>
+			)}
 		</button>
+	);
+}
+
+// A research run that started from memory: emerald, like the "From memory" panel on
+// its /research page.
+function MemoryTag() {
+	return (
+		<span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-emerald-400">
+			<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+			Memory
+		</span>
+	);
+}
+
+const savedLine = (m: MemoryHit) =>
+	[
+		m.typicalCalls != null
+			? `${m.calls} web ${m.calls === 1 ? "call" : "calls"} vs ${m.typicalCalls} typical`
+			: `${m.calls} web calls`,
+		m.secs != null && m.typicalSecs != null
+			? `${m.secs}s vs ${m.typicalSecs}s`
+			: null,
+	]
+		.filter(Boolean)
+		.join(" · ");
+
+function MemoryDetail({ c, m }: { c: Cluster; m: MemoryHit }) {
+	return (
+		<div className="flex flex-col gap-1 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.03] px-4 py-3 text-sm lg:col-span-2">
+			<span className="text-xs font-medium uppercase tracking-wider text-emerald-400">
+				Started from memory
+			</span>
+			<span className="text-zinc-300">
+				Matched {m.matched} earlier {m.matched === 1 ? "run" : "runs"} by
+				meaning (best {m.best.toFixed(2)}) and reused {m.reused} of their
+				verified sources · {savedLine(m)}.{" "}
+				{c.id.startsWith("run:") && (
+					<Link
+						to="/research/$id"
+						params={{ id: c.id.slice(4) }}
+						className="text-emerald-300 underline-offset-4 hover:underline"
+					>
+						Open the run
+					</Link>
+				)}
+			</span>
+		</div>
 	);
 }
 
 function SessionDetail({ c }: { c: Cluster }) {
 	return (
 		<div className="grid grid-cols-1 gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 lg:grid-cols-2">
+			{c.memory && <MemoryDetail c={c} m={c.memory} />}
 			<div className="flex flex-col gap-3">
 				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
 					What it searched

@@ -42,10 +42,15 @@ function AgentMemory() {
 							moment it runs.
 						</p>
 					</div>
-					<div className="grid grid-cols-3 gap-4 lg:col-span-2">
+					<div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:col-span-2">
 						<Kpi value={fmt.format(strata.searches)} label="searches" />
 						<Kpi value={fmt.format(strata.pages)} label="pages opened" />
 						<Kpi value={String(strata.machines)} label="machines" />
+						<Kpi
+							value={fmt.format(strata.saved)}
+							label={`web calls saved by memory in ${strata.memoryRuns} runs`}
+							accent
+						/>
 					</div>
 				</section>
 
@@ -79,10 +84,22 @@ function Kicker({ children }: { children: string }) {
 	);
 }
 
-function Kpi({ value, label }: { value: string; label: string }) {
+function Kpi({
+	value,
+	label,
+	accent,
+}: {
+	value: string;
+	label: string;
+	accent?: boolean;
+}) {
 	return (
 		<div className="flex flex-col gap-1">
-			<span className="font-mono text-2xl">{value}</span>
+			<span
+				className={`font-mono text-2xl ${accent ? "text-emerald-400" : ""}`}
+			>
+				{value}
+			</span>
 			<span className="text-xs text-zinc-500">{label}</span>
 		</div>
 	);
