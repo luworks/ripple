@@ -4,7 +4,7 @@ import { useState } from "react";
 export const Route = createFileRoute("/telem")({
 	head: () => ({
 		meta: [
-			{ title: "Telem, explained in one page · brain0" },
+			{ title: "Telem, explained in one page · Ripple" },
 			{
 				name: "description",
 				content:
@@ -400,7 +400,7 @@ function TelemPage() {
 				<PricingSection />
 				<CaveatsSection />
 				<footer className="text-xs text-zinc-600">
-					brain0 · sources: docs.telem.ai and our own API calls on Nov 14, 2026
+					Ripple · sources: docs.telem.ai and our own API calls on Nov 14, 2026
 					·{" "}
 					<Link to="/" className="hover:text-zinc-400">
 						back to home

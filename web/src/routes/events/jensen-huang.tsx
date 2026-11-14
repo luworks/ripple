@@ -17,7 +17,7 @@ export const Route = createFileRoute("/events/jensen-huang")({
 			: {},
 	head: () => ({
 		meta: [
-			{ title: "Jensen Huang resigns as Nvidia CEO · brain0" },
+			{ title: "Jensen Huang resigns as Nvidia CEO · Ripple" },
 			{
 				name: "description",
 				content:

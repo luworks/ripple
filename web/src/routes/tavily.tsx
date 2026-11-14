@@ -4,7 +4,7 @@ import { useState } from "react";
 export const Route = createFileRoute("/tavily")({
 	head: () => ({
 		meta: [
-			{ title: "Tavily, explained in one page · brain0" },
+			{ title: "Tavily, explained in one page · Ripple" },
 			{
 				name: "description",
 				content:
@@ -318,7 +318,7 @@ function TavilyPage() {
 				<VsTelemSection />
 				<CaveatsSection />
 				<footer className="text-xs text-zinc-600">
-					brain0 · sources: docs.tavily.com and our own API calls on Nov 14,
+					Ripple · sources: docs.tavily.com and our own API calls on Nov 14,
 					2026 ·{" "}
 					<Link to="/" className="hover:text-zinc-400">
 						back to home

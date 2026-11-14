@@ -20,7 +20,7 @@ export const Route = createFileRoute("/research/$id")({
 	head: ({ loaderData }) => ({
 		meta: [
 			{
-				title: `${loaderData?.result?.event.title ?? loaderData?.query ?? "Research"} · brain0`,
+				title: `${loaderData?.result?.event.title ?? loaderData?.query ?? "Research"} · Ripple`,
 			},
 		],
 	}),

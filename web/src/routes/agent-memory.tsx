@@ -24,7 +24,7 @@ export const Route = createFileRoute("/agent-memory")({
 		agent: param(s.agent),
 	}),
 	loader: () => getAgentMemoryOverview(),
-	head: () => ({ meta: [{ title: "Agent Memory · brain0" }] }),
+	head: () => ({ meta: [{ title: "Agent Memory · Ripple" }] }),
 	component: AgentMemory,
 });
 

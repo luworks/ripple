@@ -4,7 +4,7 @@ import { formatPT } from "#/components/PriceChart";
 import { listResearchRuns, startResearchRun } from "#/server/research";
 
 export const Route = createFileRoute("/research/")({
-	head: () => ({ meta: [{ title: "Event research · brain0" }] }),
+	head: () => ({ meta: [{ title: "Event research · Ripple" }] }),
 	loader: () => listResearchRuns(),
 	component: ResearchHome,
 });

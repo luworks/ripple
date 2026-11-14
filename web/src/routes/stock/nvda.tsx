@@ -13,7 +13,7 @@ import { type Bar, getBars, type Interval } from "#/server/stock";
 export const Route = createFileRoute("/stock/nvda")({
 	head: () => ({
 		meta: [
-			{ title: "NVDA candles and events · brain0" },
+			{ title: "NVDA candles and events · Ripple" },
 			{
 				name: "description",
 				content:
