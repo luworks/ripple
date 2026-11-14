@@ -3,7 +3,13 @@ import { useState } from "react";
 
 /* One-scroll product page laid out like a gallery wall: one painting, one
    sentence, the verbs as numbered figures, then a price list. All copy is real
-   text; the paintings never carry words. */
+   text; the paintings never carry words.
+
+   Every page built on this is the same room with different pictures: each
+   block is the same size and sits at the same height on every page, so moving
+   between them shifts nothing. Text that differs between pages is laid out
+   through <Same>; verb cards reserve their lines, because the column count
+   differs; card pictures get one height whatever the column count. */
 
 export type Pitch = {
 	kicker: string;
@@ -30,7 +36,7 @@ export type Pitch = {
 		color?: string;
 	}[];
 	price: {
-		title: string;
+		title: React.ReactNode;
 		body: string;
 		rows: { label: string; value: string; note?: string }[];
 		foot: string;
@@ -57,7 +63,13 @@ const COLS: Record<number, string> = {
 const KICKER =
 	"flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[11px] sm:tracking-[0.22em]";
 
-export function GalleryPitch({ pitch }: { pitch: Pitch }) {
+type Room = {
+	pitch: Pitch;
+	/** Every gallery page, this one included. */
+	rooms: Pitch[];
+};
+
+export function GalleryPitch({ pitch, rooms }: Room) {
 	const t = pitch.theme;
 	const vars = {
 		"--paper": t.paper,
@@ -73,34 +85,26 @@ export function GalleryPitch({ pitch }: { pitch: Pitch }) {
 			style={vars}
 			className="min-h-screen bg-[var(--paper)] text-[var(--ink)] antialiased"
 		>
-			<Hero pitch={pitch} />
+			<Hero pitch={pitch} rooms={rooms} />
 			<Verbs pitch={pitch} />
-			<PriceList pitch={pitch} />
+			<PriceList pitch={pitch} rooms={rooms} />
 			<footer className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-8 text-xs leading-relaxed text-[var(--muted)] sm:px-8 lg:flex-row lg:items-baseline lg:justify-between">
-				<p className="max-w-2xl">
-					{pitch.credit} Paintings are AI-generated for this page. Sources, read
-					Nov 14, 2026:{" "}
-					{pitch.sources.map((s, i) => (
-						<span key={s.href}>
-							{i > 0 && ", "}
-							<a
-								href={s.href}
-								target="_blank"
-								rel="noreferrer"
-								className="underline decoration-[var(--rule)] underline-offset-2 hover:text-[var(--ink)]"
-							>
-								{s.label}
-							</a>
-						</span>
-					))}
-					.
+				<p className="grid max-w-2xl grid-cols-1">
+					<Same pitch={pitch} rooms={rooms} pick={credit} />
 				</p>
 				<p className="flex shrink-0 gap-5 text-[var(--ink)]">
 					<Link to={pitch.guide} className="hover:text-[var(--accent)]">
 						Field notes: what we measured →
 					</Link>
-					<Link to={pitch.next.to} className="hover:text-[var(--accent)]">
-						{pitch.next.label} →
+					<Link
+						to={pitch.next.to}
+						className="grid grid-cols-1 hover:text-[var(--accent)]"
+					>
+						<Same
+							pitch={pitch}
+							rooms={rooms}
+							pick={(r) => `${r.next.label} →`}
+						/>
 					</Link>
 				</p>
 			</footer>
@@ -108,7 +112,63 @@ export function GalleryPitch({ pitch }: { pitch: Pitch }) {
 	);
 }
 
-function Hero({ pitch }: { pitch: Pitch }) {
+/* This page's text in one grid cell, with the same text from every other room
+   laid out invisibly in that cell. The cell takes the size of the longest, so
+   the block is the same size on every page at any width and in any font.
+   The parent must be a one-column grid. */
+function Same({
+	pitch,
+	rooms,
+	pick,
+	className = "",
+}: Room & {
+	pick: (room: Pitch) => React.ReactNode;
+	/** Applied to this page's text only. */
+	className?: string;
+}) {
+	return rooms.map((room) => {
+		const text = pick(room);
+		if (text == null) return null;
+		return room === pitch ? (
+			<span key={room.guide} className={`col-start-1 row-start-1 ${className}`}>
+				{text}
+			</span>
+		) : (
+			<span
+				key={room.guide}
+				aria-hidden="true"
+				className="invisible col-start-1 row-start-1"
+			>
+				{text}
+			</span>
+		);
+	});
+}
+
+function credit(room: Pitch) {
+	return (
+		<>
+			{room.credit} Paintings are AI-generated for this page. Sources, read Nov
+			14, 2026:{" "}
+			{room.sources.map((s, i) => (
+				<span key={s.href}>
+					{i > 0 && ", "}
+					<a
+						href={s.href}
+						target="_blank"
+						rel="noreferrer"
+						className="underline decoration-[var(--rule)] underline-offset-2 hover:text-[var(--ink)]"
+					>
+						{s.label}
+					</a>
+				</span>
+			))}
+			.
+		</>
+	);
+}
+
+function Hero({ pitch, rooms }: Room) {
 	const p = pitch.painting;
 	return (
 		<section className="relative">
@@ -121,44 +181,55 @@ function Hero({ pitch }: { pitch: Pitch }) {
 				className="gallery-art h-[36svh] w-full object-cover object-[78%_50%] lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-[60%]"
 			/>
 			<div className="relative mx-auto max-w-6xl px-5 sm:px-8">
-				<div className="-mt-6 flex max-w-[35rem] flex-col gap-7 pb-12 lg:mt-0 lg:min-h-[min(calc(100svh-4rem),45rem)] lg:justify-center lg:py-14">
+				<div className="-mt-6 flex max-w-[35rem] flex-col gap-7 pb-12 lg:mt-0 lg:min-h-[min(calc(100svh-4rem),44rem)] lg:justify-center lg:py-14">
 					<p className={KICKER}>
 						<span className="hidden h-px w-8 bg-current sm:block" />
 						{pitch.kicker}
 					</p>
-					<h1 className="font-display text-[3.4rem] leading-[0.94] sm:text-7xl lg:text-[5.5rem] [&_em]:text-[var(--accent)]">
+					<h1 className="font-display text-[clamp(2.75rem,14.5vw,3.4rem)] leading-[0.94] sm:text-7xl lg:text-[5.5rem] [&_em]:text-[var(--accent)]">
 						{pitch.title}
 					</h1>
-					<p className="max-w-[31rem] text-lg leading-relaxed">{pitch.lede}</p>
-					<dl className="relative flex divide-x divide-[var(--rule)]">
-						{pitch.facts.map((f) => (
+					<p className="grid max-w-[31rem] grid-cols-1 text-lg leading-relaxed">
+						<Same pitch={pitch} rooms={rooms} pick={(r) => r.lede} />
+					</p>
+					<dl className="relative grid grid-cols-3 divide-x divide-[var(--rule)]">
+						{pitch.facts.map((f, i) => (
 							<div
 								key={f.label}
 								// focusable, so the list also opens from the keyboard and on tap
 								tabIndex={f.detail ? 0 : undefined}
-								className={`group flex flex-col-reverse px-4 outline-none first:pl-0 sm:px-6 ${f.detail ? "cursor-help" : ""}`}
+								className={`group flex min-w-0 flex-col-reverse justify-end px-3 outline-none first:pl-0 last:pr-0 sm:px-6 ${f.detail ? "cursor-help" : ""}`}
 							>
 								<dt className="mt-1 text-sm leading-tight">
-									<span className="font-medium">{f.label}</span>
-									<span
-										className={`block text-xs text-[var(--muted)] ${f.detail ? "underline decoration-dotted underline-offset-2 group-hover:text-[var(--ink)] group-focus-visible:text-[var(--ink)]" : ""}`}
-									>
-										{f.note}
+									<span className="block whitespace-nowrap font-medium">
+										{f.label}
+									</span>
+									<span className="grid grid-cols-1 text-xs text-[var(--muted)]">
+										<Same
+											pitch={pitch}
+											rooms={rooms}
+											pick={(r) => r.facts[i]?.note}
+											className={
+												f.detail
+													? "underline decoration-dotted underline-offset-2 group-hover:text-[var(--ink)] group-focus-visible:text-[var(--ink)]"
+													: ""
+											}
+										/>
 									</span>
 									{f.detail && <FactDetail detail={f.detail} />}
 								</dt>
-								<dd className="font-display text-4xl leading-none sm:text-5xl">
+								<dd className="whitespace-nowrap font-display text-[clamp(1.875rem,10vw,2.25rem)] leading-none sm:text-5xl">
 									{f.value}
 								</dd>
 							</div>
 						))}
 					</dl>
-					<div className="flex flex-wrap items-center gap-3">
+					<div className="flex items-center gap-2 sm:gap-3">
 						<a
 							href={pitch.cta.href}
 							target="_blank"
 							rel="noreferrer"
-							className="flex items-center gap-2 rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-medium text-[var(--paper)] transition-opacity hover:opacity-85"
+							className="flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[var(--ink)] px-4 py-3 text-sm font-medium text-[var(--paper)] transition-opacity hover:opacity-85 sm:px-5"
 						>
 							{pitch.cta.label}
 							<svg
@@ -172,7 +243,7 @@ function Hero({ pitch }: { pitch: Pitch }) {
 						<CopyButton
 							text={pitch.setup.command}
 							label={pitch.setup.label}
-							className="rounded-full border border-[var(--ink)]/30 px-5 py-3 text-sm font-medium transition-colors hover:border-[var(--ink)]"
+							className="whitespace-nowrap rounded-full border border-[var(--ink)]/30 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--ink)] sm:px-5"
 						/>
 					</div>
 				</div>
@@ -237,12 +308,12 @@ function Verbs({ pitch }: { pitch: Pitch }) {
 				</p>
 			</div>
 			<ol
-				className={`-mx-5 mt-6 flex snap-x snap-mandatory scroll-px-5 gap-5 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 ${COLS[pitch.verbs.length]}`}
+				className={`-mx-5 mt-6 flex snap-x snap-mandatory scroll-px-5 gap-5 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:mx-0 lg:grid lg:overflow-visible lg:px-0 ${COLS[pitch.verbs.length]}`}
 			>
 				{pitch.verbs.map((v, i) => (
 					<li
 						key={v.name}
-						className="flex w-[70%] shrink-0 snap-start flex-col sm:w-auto"
+						className="flex w-[70%] shrink-0 snap-start flex-col sm:w-[38%] lg:w-auto"
 					>
 						<div className="border border-[var(--rule)] bg-white/70 p-1.5">
 							<img
@@ -251,7 +322,7 @@ function Verbs({ pitch }: { pitch: Pitch }) {
 								width={480}
 								height={480}
 								loading="lazy"
-								className="aspect-square w-full object-cover"
+								className="aspect-square w-full object-cover lg:aspect-auto lg:h-[min(15.5vw,14rem)]"
 							/>
 						</div>
 						<p className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
@@ -263,8 +334,11 @@ function Verbs({ pitch }: { pitch: Pitch }) {
 						>
 							{v.name}
 						</h3>
-						<p className="mt-1 text-[15px] leading-snug">{v.line}</p>
-						<p className="mt-2 text-sm leading-snug text-[var(--muted)]">
+						{/* three lines reserved for the description, two for "use when" */}
+						<p className="mt-1 min-h-[3lh] text-[15px] leading-snug">
+							{v.line}
+						</p>
+						<p className="mt-2 min-h-[2.75rem] text-sm leading-snug text-[var(--muted)]">
 							<span className="font-display text-base italic">Use when</span>{" "}
 							{v.when}
 						</p>
@@ -280,11 +354,11 @@ function Verbs({ pitch }: { pitch: Pitch }) {
 	);
 }
 
-function PriceList({ pitch }: { pitch: Pitch }) {
+function PriceList({ pitch, rooms }: Room) {
 	const pr = pitch.price;
 	return (
 		<section className="border-y border-[var(--rule)] bg-[var(--wall)]">
-			<div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:py-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+			<div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:py-9 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
 				<div className="flex min-w-0 flex-col gap-5">
 					<p className={KICKER}>
 						<span className="hidden h-px w-8 bg-current sm:block" />
@@ -293,31 +367,41 @@ function PriceList({ pitch }: { pitch: Pitch }) {
 					<h2 className="font-display text-5xl leading-[0.98] sm:text-6xl">
 						{pr.title}
 					</h2>
-					<p className="max-w-md text-lg leading-relaxed">{pr.body}</p>
+					<p className="grid max-w-md grid-cols-1 text-lg leading-relaxed">
+						<Same pitch={pitch} rooms={rooms} pick={(r) => r.price.body} />
+					</p>
 				</div>
 				<div className="flex min-w-0 flex-col gap-6">
-					<dl className="flex flex-col gap-4">
-						{pr.rows.map((r) => (
+					<dl className="flex flex-col gap-3">
+						{pr.rows.map((r, i) => (
 							<div key={r.label}>
 								<div className="flex items-baseline gap-3">
-									<dt className="font-display text-2xl">{r.label}</dt>
+									{/* one line at any width: the price shrinks before it wraps */}
+									<dt className="whitespace-nowrap font-display text-2xl">
+										{r.label}
+									</dt>
 									<span className="flex-1 -translate-y-1 border-b border-dotted border-[var(--muted)]/60" />
-									<dd className="font-mono text-sm tabular-nums sm:text-base">
+									<dd className="whitespace-nowrap font-mono text-[clamp(0.75rem,3.6vw,0.875rem)] tabular-nums sm:text-base">
 										{r.value}
 									</dd>
 								</div>
-								{r.note && (
-									<p className="text-xs text-[var(--muted)]">{r.note}</p>
-								)}
+								{/* always there, so every row has the same pitch */}
+								<p className="grid min-h-4 grid-cols-1 text-xs text-[var(--muted)]">
+									<Same
+										pitch={pitch}
+										rooms={rooms}
+										pick={(room) => room.price.rows[i]?.note}
+									/>
+								</p>
 							</div>
 						))}
 					</dl>
-					<p className="text-sm leading-relaxed text-[var(--muted)]">
-						{pr.foot}
+					<p className="grid grid-cols-1 text-sm leading-relaxed text-[var(--muted)]">
+						<Same pitch={pitch} rooms={rooms} pick={(r) => r.price.foot} />
 					</p>
-					<div className="flex items-start gap-3 border border-[var(--rule)] bg-[var(--paper)] px-4 py-3">
-						<code className="min-w-0 flex-1 break-words font-mono text-xs leading-relaxed">
-							{pitch.setup.command}
+					<div className="flex items-center gap-3 border border-[var(--rule)] bg-[var(--paper)] px-4 py-3">
+						<code className="grid min-w-0 flex-1 grid-cols-1 items-center break-words font-mono text-xs leading-relaxed">
+							<Same pitch={pitch} rooms={rooms} pick={(r) => r.setup.command} />
 						</code>
 						<CopyButton
 							text={pitch.setup.command}
