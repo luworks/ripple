@@ -51,12 +51,11 @@ jobs:
           TELEM_HACK_API_KEY: ${{ secrets.TELEM_HACK_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           AGENT_INTERNAL_TOKEN: ${{ secrets.BRAIN0_AGENT_INTERNAL_TOKEN }}
-          SITE_PASSWORD: ${{ secrets.BRAIN0_SITE_PASSWORD }}
           PUBLIC_ORIGIN: https://search.chaorders.com
         run: |
           node <<'NODE'
           const fs = require('node:fs');
-          const names = ['DATABASE_URL', 'OPENAI_API_KEY', 'TELEM_HACK_API_KEY', 'TAVILY_API_KEY', 'AGENT_INTERNAL_TOKEN', 'SITE_PASSWORD', 'PUBLIC_ORIGIN'];
+          const names = ['DATABASE_URL', 'OPENAI_API_KEY', 'TELEM_HACK_API_KEY', 'TAVILY_API_KEY', 'AGENT_INTERNAL_TOKEN', 'PUBLIC_ORIGIN'];
           for (const name of names) if (!process.env[name]) throw Error(`Missing ${name}`);
           fs.writeFileSync(process.env.RUNNER_TEMP + '/brain0-secrets.json', JSON.stringify(Object.fromEntries(names.map(k => [k, process.env[k]]))), {mode: 0o600});
           NODE

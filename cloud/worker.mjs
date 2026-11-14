@@ -40,10 +40,6 @@ export default {
 				return new Response("Not found", { status: 404 });
 			return getContainer(bindings.AGENT, crypto.randomUUID()).fetch(new Request("http://container/run", request));
 		}
-		let credentials = "";
-		try { credentials = atob((request.headers.get("authorization") ?? "").replace(/^Basic\s+/i, "")); } catch {}
-		if (!bindings.SITE_PASSWORD || !(await equal(credentials, `brain0:${bindings.SITE_PASSWORD}`)))
-			return new Response("Authentication required", { status: 401, headers: { "WWW-Authenticate": 'Basic realm="Brain0", charset="UTF-8"', "Cache-Control": "no-store" } });
 		if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
 			const origin = request.headers.get("origin");
 			if (origin && origin !== url.origin) return new Response("Forbidden", { status: 403 });

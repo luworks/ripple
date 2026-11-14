@@ -34,7 +34,6 @@ export default defineConfig({
 			TELEM_HACK_API_KEY: bindings.secret(),
 			TAVILY_API_KEY: bindings.secret(),
 			AGENT_INTERNAL_TOKEN: bindings.secret(),
-			SITE_PASSWORD: bindings.secret(),
 			PUBLIC_ORIGIN: bindings.secret(),
 		},
 	},
