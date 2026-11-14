@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { BRAND } from "#/brand";
 import {
+	COMPARE,
 	PRO_MO,
+	PRODUCT_SHORT,
 	REASONS,
 	RUN_COST,
 	RUN_COUNT,
@@ -105,12 +107,18 @@ export function VenturePitch() {
 					</li>
 				))}
 			</ol>
-			<Link
-				to="/pricing"
-				className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm text-[var(--paper)] hover:bg-[var(--seal)]"
-			>
-				Pricing and the full comparison →
-			</Link>
+			<Compare />
+			<div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
+				<Link
+					to="/pricing"
+					className="inline-flex items-center gap-2 rounded-full bg-[var(--seal)] px-6 py-3 text-base font-medium text-[var(--paper)] hover:bg-[var(--ink)]"
+				>
+					See pricing →
+				</Link>
+				<span className="text-sm text-[var(--muted)]">
+					Free to start. Pro ${PRO_MO} a month. Every capability on every plan.
+				</span>
+			</div>
 
 			<div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-2">
 				<div className="flex flex-col gap-4">
@@ -165,6 +173,52 @@ export function VenturePitch() {
 				<Sources />
 			</div>
 		</section>
+	);
+}
+
+// Five narrow columns fit at 375 px: product names wrap, cells are short.
+function Compare() {
+	const cols =
+		"grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-x-1.5 sm:gap-x-4";
+	return (
+		<div className="mt-14 flex flex-col gap-4 border-t border-[var(--rule)] pt-10">
+			<span className={KICKER}>Ripple vs the incumbents</span>
+			<div className="text-[11px] sm:text-sm">
+				<div className={`${cols} border-b border-[var(--ink)] pb-2`}>
+					<span />
+					{PRODUCT_SHORT.map((p, i) => (
+						<span
+							key={p}
+							className={`text-center font-serif text-[10px] leading-tight sm:text-sm ${i === 0 ? "font-medium text-[var(--seal)]" : "text-[var(--muted)]"}`}
+						>
+							{p}
+						</span>
+					))}
+				</div>
+				{COMPARE.map((r) => (
+					<div
+						key={r.label}
+						className={`${cols} items-center border-b border-[var(--rule)] py-3`}
+					>
+						<span className="leading-snug">{r.label}</span>
+						{r.cells.map((v, i) => (
+							<span
+								key={PRODUCT_SHORT[i]}
+								className={`hyphens-auto text-center leading-tight ${i === 0 ? "font-medium text-[var(--seal)]" : "text-[var(--muted)]"}`}
+							>
+								{v === "yes" ? (
+									"✓"
+								) : v === "—" ? (
+									<span className="text-[var(--rule)]">—</span>
+								) : (
+									v
+								)}
+							</span>
+						))}
+					</div>
+				))}
+			</div>
+		</div>
 	);
 }
 

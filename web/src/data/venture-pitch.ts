@@ -110,6 +110,31 @@ export const MATRIX: { label: string; cells: string[] }[] = [
 	},
 ];
 
+// The home page's short comparison: four MATRIX rows under shorter labels.
+export const COMPARE = [
+	[
+		"Chinese social: Xiaohongshu, Douyin, Weibo, Zhihu",
+		"Chinese social signal",
+	],
+	[
+		"Social posts on the same minute clock as the price",
+		"Posts and price on one minute clock",
+	],
+	["Every line linked to a source URL and UTC time", "A source on every claim"],
+	["Price per seat", "Price per seat"],
+].map(([full, label]) => ({
+	label,
+	cells: (MATRIX.find((r) => r.label === full) as (typeof MATRIX)[number])
+		.cells,
+}));
+export const PRODUCT_SHORT = [
+	"Ripple",
+	"Bloomberg",
+	"Dataminr",
+	"AlphaSense",
+	"Benzinga Pro",
+];
+
 // Why a desk picks us, one line each, as a direct contrast.
 export const REASONS = [
 	{
