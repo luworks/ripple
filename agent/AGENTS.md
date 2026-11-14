@@ -66,10 +66,12 @@ memory and even at 30 s, makes one parallel round of it (direct ticker + benchma
   parallel round of `price_history` (direct ticker + SPY, with `events`). 3–5 tickers,
   4–8 timeline items, short text.
 - **N ≤ 90 (standard).** Method step 1 without the Reddit call; fetch at most once.
-  With memory cover: exactly one update search, no fetch.
+  With memory cover: the Memory section's FOUR `telem_search` calls in ONE parallel round
+  (together with `price_history`; parallel calls cost one round, not four), no fetch.
 - **N > 90 (deep).** The full Method. With memory cover: the Memory update search.
-- **N > 45 with memory cover: your FIRST tool call is the update `telem_search`**
-  (`published_after` = newest memory item), in the same parallel round as `price_history`.
+- **N > 45 with memory cover: your FIRST round is the Memory section's FOUR parallel
+  `telem_search` calls** (update, X, Reddit, local-language social), in the same parallel round
+  as `price_history`.
   Memory is what was true then; the user asked now. Skipping it is a failed run.
 
 ## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
