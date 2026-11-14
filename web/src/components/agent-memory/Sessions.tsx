@@ -157,14 +157,19 @@ function MemoryDetail({ c, m }: { c: Cluster; m: MemoryHit }) {
 
 function SessionDetail({ c }: { c: Cluster }) {
 	return (
-		<div
-			className={`grid h-[26rem] grid-cols-1 gap-8 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 lg:grid-cols-2 lg:overflow-hidden ${c.memory ? "lg:grid-rows-[auto_minmax(0,1fr)]" : "lg:grid-rows-[minmax(0,1fr)]"}`}
-		>
+		<div className="grid grid-cols-1 gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 lg:grid-cols-2">
 			{c.memory && <MemoryDetail c={c} m={c.memory} />}
-			<div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+			<div className="flex flex-col gap-3">
 				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
 					What it searched
 				</span>
+				{c.searches.length === 0 && (
+					<p className="text-sm text-zinc-500">
+						{c.memory
+							? "No web searches: it started from memory."
+							: "No visible searches."}
+					</p>
+				)}
 				<ol className="flex flex-col gap-2">
 					{c.searches.map((s, i) => (
 						<li
@@ -182,7 +187,7 @@ function SessionDetail({ c }: { c: Cluster }) {
 					))}
 				</ol>
 			</div>
-			<div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+			<div className="flex flex-col gap-3">
 				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
 					What it kept
 				</span>

@@ -80,6 +80,9 @@ export function SearchChart({
 }) {
 	const [series, setSeries] = useState(initial);
 	const [hover, setHover] = useState<number | null>(null);
+	// A clicked bucket stays selected (by its time, so live refreshes keep it) until
+	// another bar is clicked or the same bar is clicked again.
+	const [locked, setLocked] = useState<string | null>(null);
 	const [details, setDetails] = useState<Record<string, Detail>>({
 		[`day|${initialDetail.t}`]: initialDetail,
 	});
@@ -90,7 +93,8 @@ export function SearchChart({
 	// Without a hover, show the latest bucket that has searches, not an empty "now".
 	let latest = last;
 	while (latest > 0 && total(rows[latest]) === 0) latest--;
-	const shown = Math.min(hover ?? latest, last);
+	const lockedAt = locked ? rows.findIndex((r) => r.t === locked) : -1;
+	const shown = Math.min(lockedAt >= 0 ? lockedAt : (hover ?? latest), last);
 	const b = rows[shown];
 	const key = `${grain}|${b.t}`;
 	const detail = details[key];
@@ -143,6 +147,7 @@ export function SearchChart({
 	const pick = (g: Grain) => {
 		if (g === grain) return;
 		setHover(null);
+		setLocked(null);
 		getSeries({ data: { grain: g } })
 			.then(setSeries)
 			.catch(() => {});
@@ -167,6 +172,15 @@ export function SearchChart({
 				<div className="flex flex-col gap-2">
 					<span className="text-sm text-zinc-400">
 						{bucketLabel(b.t, grain)}
+						{lockedAt >= 0 && (
+							<button
+								type="button"
+								onClick={() => setLocked(null)}
+								className="ml-2 text-xs text-sky-400 hover:text-sky-300"
+							>
+								selected · clear
+							</button>
+						)}
 					</span>
 					<span className="font-mono text-3xl text-zinc-100">
 						{fmt.format(total(b))}
@@ -269,8 +283,9 @@ export function SearchChart({
 										// mouseenter on each bar and would re-render the page mid-scroll.
 										onPointerMove={() => hover !== i && setHover(i)}
 										onFocus={() => setHover(i)}
-										onClick={() => setHover(i)}
-										className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
+										onClick={() => setLocked((t) => (t === r.t ? null : r.t))}
+										aria-pressed={locked === r.t}
+										className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"} ${locked === r.t ? "ring-1 ring-sky-400/70" : ""}`}
 									>
 										{SOURCES.map((s, j) => (
 											<span
