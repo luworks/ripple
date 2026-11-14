@@ -20,7 +20,7 @@ const GRAINS: [Grain, string][] = [
 const SPAN_LABEL: Record<Grain, string> = {
 	"15m": "last 48 hours",
 	hour: "last 7 days",
-	day: "since the first search",
+	day: "since Sep 1",
 };
 
 const total = (b: Bucket) => b.claude + b.codex + b.telem + b.tavily;

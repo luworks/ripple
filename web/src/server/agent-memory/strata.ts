@@ -6,6 +6,8 @@ import type postgres from "postgres";
 // own runs (public.research_runs), filtered through demo_text_unsafe().
 
 const TZ = "America/Los_Angeles";
+// The page starts here (a PT day): nothing earlier is shown or sent to the browser.
+const SINCE = "2026-09-01";
 // URLs an agent actually opened, not every link listed in search results.
 const PAGE_KINDS = ["open_target", "page_reference"];
 // URLs that say where a search went: its results plus the pages opened.
@@ -90,6 +92,7 @@ const grainOf = (g: unknown): Grain =>
 
 type Sql = ReturnType<typeof import("../db").db>;
 type Ts = string | Date | postgres.PendingQuery<postgres.Row[]>;
+const sinceTs = (sql: Sql) => sql`(${SINCE}::timestamp at time zone ${TZ})`;
 async function getSql(): Promise<Sql> {
 	const { db } = await import("../db");
 	return db();
@@ -123,12 +126,18 @@ export const getStrata = createServerFn({ method: "GET" }).handler(
 	async (): Promise<Strata> => {
 		const sql = await getSql();
 		strata ??= (async () => {
+			const since = sinceTs(sql);
 			const [r] = await sql`select
-				(select count(*) from hackathon_agent_data.demo_events where event_type = 'search_operation')::int as agent,
-				(select count(*) from hackathon_agent_data.demo_urls where occurrence_kind = any(${PAGE_KINDS}))::int as pages,
-				(select count(distinct machine) from hackathon_agent_data.demo_events)::int as machines,
+				(select count(*) from hackathon_agent_data.demo_events
+					where event_type = 'search_operation' and ts >= ${since})::int as agent,
+				(select count(*) from hackathon_agent_data.demo_urls u
+					join hackathon_agent_data.demo_events e on e.id = u.event_id
+					where u.occurrence_kind = any(${PAGE_KINDS}) and e.ts >= ${since})::int as pages,
+				(select count(distinct machine) from hackathon_agent_data.demo_events
+					where ts >= ${since})::int as machines,
 				(select to_char((min(ts) at time zone ${TZ})::date, 'YYYY-MM-DD')
-					from hackathon_agent_data.demo_events where event_type = 'search_operation') as first`;
+					from hackathon_agent_data.demo_events
+					where event_type = 'search_operation' and ts >= ${since}) as first`;
 			return r as Static;
 		})().catch((err) => {
 			strata = undefined;
@@ -136,7 +145,8 @@ export const getStrata = createServerFn({ method: "GET" }).handler(
 		});
 		const [{ agent, ...s }, [runs], [mem]] = await Promise.all([
 			strata,
-			sql`select count(*)::int as n from (${researchSearches(sql, "-infinity")}) x`,
+			sql`select count(*)::int as n from (${researchSearches(sql, sinceTs(sql))}) x
+				where at >= ${sinceTs(sql)}`,
 			sql`select count(*)::int as runs,
 					coalesce(sum((m->'baseline'->>'searchCalls')::int - (
 						select count(*) from jsonb_array_elements(r.events) e
@@ -145,6 +155,7 @@ export const getStrata = createServerFn({ method: "GET" }).handler(
 				cross join lateral (select e->'memory' as m from jsonb_array_elements(r.events) e
 					where e->>'kind' = 'memory' limit 1) x
 				where r.status = 'done' and r.query !~* ${TEST_RUN}
+					and r.created_at >= ${sinceTs(sql)}
 					and jsonb_array_length(coalesce(m->'runs', '[]')) > 0`,
 		]);
 		return {
@@ -165,7 +176,7 @@ export const getSeries = createServerFn({ method: "GET" })
 		const origin = "2000-01-01";
 		const rows = await sql`
 			with lo as (
-				select greatest(now() - ${SPAN[data.grain]}::interval,
+				select greatest(now() - ${SPAN[data.grain]}::interval, ${sinceTs(sql)},
 					(select min(ts) from hackathon_agent_data.demo_events where event_type = 'search_operation')) as ts
 			),
 			hits as (
@@ -198,10 +209,15 @@ export const getSeries = createServerFn({ method: "GET" })
 // One bucket: top domains, most repeated queries, and the sessions / research runs in it.
 // Without t: the latest bucket.
 export const getDetail = createServerFn({ method: "GET" })
-	.validator((d: { grain: Grain; t?: string }) => ({
-		grain: grainOf(d?.grain),
-		t: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d?.t ?? "") ? d.t : undefined,
-	}))
+	.validator((d: { grain: Grain; t?: string }) => {
+		const t = d?.t ?? "";
+		return {
+			grain: grainOf(d?.grain),
+			// Buckets before SINCE fall back to the latest one.
+			t:
+				/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t) && t >= SINCE ? t : undefined,
+		};
+	})
 	.handler(async ({ data }): Promise<Detail> => {
 		const sql = await getSql();
 		const step = STEP[data.grain];
