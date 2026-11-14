@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BRAND } from "#/brand";
 import { RippleReplayView } from "#/components/ripple/RippleReplay";
+import { VenturePitch } from "#/components/VenturePitch";
 import { startResearchRun } from "#/server/research";
 
 // Demo video: an .mp4 in web/public (e.g. "/demo.mp4") or a YouTube/Loom embed URL.
@@ -44,6 +45,12 @@ function Home() {
 							platforms, every claim linked to its source.
 						</p>
 						<SearchBox />
+						<a
+							href="#pitch"
+							className="text-sm text-zinc-500 hover:text-sky-400"
+						>
+							Investors: who pays, why us, how big ↓
+						</a>
 					</div>
 					<DemoVideo />
 				</section>
@@ -75,6 +82,8 @@ function Home() {
 				</section>
 
 				<TelemStages />
+
+				<VenturePitch />
 
 				<section className="flex flex-col gap-8">
 					<div className="flex flex-col gap-3">
@@ -121,24 +130,6 @@ function Home() {
 							b="Every search our agents ran, live as new ones land."
 						/>
 					</div>
-				</section>
-
-				<section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-800 md:grid-cols-3">
-					<Pillar
-						k="Who pays"
-						t="Event-driven desks"
-						b="Analysts, PMs and traders who must know in minutes whether a headline is real and what it hits. Per-seat plus API."
-					/>
-					<Pillar
-						k="What is new"
-						t="Posts and price on one clock"
-						b="Terminals carry wires. We add social and Chinese-language signal, mapped to tickers on the same minute-level timeline."
-					/>
-					<Pillar
-						k="How it runs"
-						t="Sandboxed, schema-checked"
-						b="Each query runs in a fresh read-only container: Codex + Telem, Tavily and market MCPs. Prices never come from model text."
-					/>
 				</section>
 			</div>
 		</main>
@@ -307,17 +298,5 @@ function Card({ to, k, t, b }: { to: To; k: string; t: string; b: string }) {
 			</span>
 			<span className="text-sm text-zinc-500">{b}</span>
 		</Link>
-	);
-}
-
-function Pillar({ k, t, b }: { k: string; t: string; b: string }) {
-	return (
-		<div className="flex flex-col gap-2 bg-zinc-950 p-6">
-			<span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-				{k}
-			</span>
-			<span className="font-medium">{t}</span>
-			<p className="text-sm leading-relaxed text-zinc-400">{b}</p>
-		</div>
 	);
 }
