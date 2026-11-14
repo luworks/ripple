@@ -1,11 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { toBudget } from "./research-budget";
 import type { PriceSeries } from "./research-types";
 
 export const startResearchRun = createServerFn({ method: "POST" })
-	.validator((d: { query: string }) => ({ query: String(d?.query ?? "") }))
+	.validator((d: { query: string; budget?: number }) => ({
+		query: String(d?.query ?? ""),
+		budget: toBudget(d?.budget),
+	}))
 	.handler(async ({ data }) => {
 		const { startResearch } = await import("./research-service");
-		return startResearch(data.query);
+		return startResearch(data.query, data.budget);
 	});
 
 export const getResearchRun = createServerFn({ method: "GET" })

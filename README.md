@@ -40,7 +40,7 @@ The site header lives in `web/src/components/SiteHeader.tsx`; don't add page-lev
 - Our instructions live in `agent/AGENTS.md`; Codex's built-in system prompt is left untouched.
 - Build after changing anything in `agent/`: `docker build -t brain0-agent agent`.
 - CLI test: `docker run --rm --read-only --tmpfs /tmp -e OPENAI_API_KEY -e TELEM_API_KEY -e TELEM_HACK_API_KEY -e TAVILY_API_KEY brain0-agent "Jensen Huang resigns as Nvidia CEO"`.
-- Model and effort: `AGENT_MODEL` (default `gpt-5.4-mini`), `AGENT_EFFORT` (default `low`); timeout `AGENT_TIMEOUT_MS` (240 s).
+- Model and effort: `AGENT_MODEL` (default `gpt-5.4-mini`), `AGENT_EFFORT` (default `low`); timeout per run = search budget + max(45 s, budget/2); `AGENT_TIMEOUT_MS` (240 s) only applies to callers without a budget.
 - The web server runs it via `web/src/server/agent-runner.ts`; charts re-fetch prices from Yahoo and never use numbers from the model.
 
 ## Market data

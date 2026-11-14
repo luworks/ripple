@@ -36,7 +36,8 @@ createServer(async (req, res) => {
 	res.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store" });
 	const child = spawn(process.env.AGENT_EXECUTABLE ?? "/usr/local/bin/run.sh", [query], { stdio: ["ignore", "pipe", "ignore"] });
 	child.stdout.pipe(res, { end: false });
-	const timeout = setTimeout(() => child.kill("SIGKILL"), 240_000);
+	// Backstop only: the web app aborts at the run's budget plus margin (max 360 s).
+	const timeout = setTimeout(() => child.kill("SIGKILL"), 360_000);
 	res.on("close", () => child.kill("SIGKILL"));
 	child.on("error", () => res.end('{"type":"brain0.error","exit_code":1}\n', () => process.exit(1)));
 	child.on("close", () => { clearTimeout(timeout); res.end(() => process.exit(0)); });

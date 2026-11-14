@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	type ChartSeries,
 	formatPT,
@@ -21,6 +21,13 @@ import {
 	listShowcaseRuns,
 	startResearchRun,
 } from "#/server/research";
+import {
+	BUDGETS,
+	type Budget,
+	budgetLabel,
+	DEFAULT_BUDGET,
+	toBudget,
+} from "#/server/research-budget";
 import type { RunSummary } from "#/server/research-db";
 import type { PriceSeries, ResearchResult } from "#/server/research-types";
 
@@ -64,6 +71,14 @@ const examples = [
 	"OpenAI announces IPO filing",
 	"Apple misses iPhone sales estimates",
 ];
+
+const BUDGET_KEY = "brain0.research.budget";
+const BUDGET_HINT: Record<Budget, string> = {
+	30: "quick: one search, key tickers",
+	60: "standard: a few searches",
+	120: "deep: the full method",
+	240: "deep, with room for slow sources",
+};
 
 const FEATURED = /jensen|黄仁勋/i;
 // Finished runs shown here: an allowlist, because test and batch runs keep arriving. Each one
@@ -143,6 +158,20 @@ function ResearchHome() {
 	const [query, setQuery] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [budget, setBudget] = useState<Budget>(DEFAULT_BUDGET);
+	// Remember the choice per browser (a live demo sets 30s once). After mount, so SSR matches.
+	useEffect(() => {
+		try {
+			const saved = localStorage.getItem(BUDGET_KEY);
+			if (saved) setBudget(toBudget(saved));
+		} catch {}
+	}, []);
+	const pickBudget = (b: Budget) => {
+		setBudget(b);
+		try {
+			localStorage.setItem(BUDGET_KEY, String(b));
+		} catch {}
+	};
 
 	async function submit(q: string) {
 		const text = q.trim();
@@ -150,7 +179,7 @@ function ResearchHome() {
 		setBusy(true);
 		setError(null);
 		try {
-			const r = await startResearchRun({ data: { query: text } });
+			const r = await startResearchRun({ data: { query: text, budget } });
 			if (r.ok) navigate({ to: "/research/$id", params: { id: r.id } });
 			else setError(r.error);
 		} catch (err) {
@@ -173,7 +202,7 @@ function ResearchHome() {
 					<p className="max-w-xl text-lg leading-relaxed text-zinc-400">
 						Describe an event. A research agent finds the people, related
 						tickers and a timestamped news timeline, then we overlay it on real
-						price data. Takes 1–3 minutes.
+						price data. You choose how long it searches.
 					</p>
 					<form
 						className="flex flex-col gap-3 sm:flex-row"
@@ -197,6 +226,31 @@ function ResearchHome() {
 							{busy ? "Starting…" : "Research"}
 						</button>
 					</form>
+					<fieldset className="flex flex-wrap items-center gap-2 text-sm">
+						<legend className="sr-only">Search time</legend>
+						<span className="text-zinc-500">Search time</span>
+						{BUDGETS.map((b) => (
+							<label
+								key={b}
+								className={`cursor-pointer rounded-lg border px-3 py-1 font-mono transition-colors has-focus-visible:ring-2 has-focus-visible:ring-emerald-400/60 ${
+									b === budget
+										? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
+										: "border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+								}`}
+							>
+								<input
+									type="radio"
+									name="budget"
+									value={b}
+									checked={b === budget}
+									onChange={() => pickBudget(b)}
+									className="sr-only"
+								/>
+								{budgetLabel(b)}
+							</label>
+						))}
+						<span className="text-xs text-zinc-600">{BUDGET_HINT[budget]}</span>
+					</fieldset>
 					{error && (
 						<p className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm text-rose-300">
 							{error}

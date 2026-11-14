@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { runResearch } from "./agent-runner";
 import { recall } from "./memory";
+import { type Budget, budgetLabel, hardTimeoutMs } from "./research-budget";
 import {
 	appendEvent,
 	findCachedRun,
@@ -72,7 +73,10 @@ export type StartResult =
 	| { ok: true; id: string; cached: boolean }
 	| { ok: false; error: string; status: number };
 
-export async function startResearch(raw: string): Promise<StartResult> {
+export async function startResearch(
+	raw: string,
+	budget: Budget,
+): Promise<StartResult> {
 	const query = raw.trim();
 	if (!query) return { ok: false, error: "Query is empty.", status: 400 };
 	if (query.length > MAX_QUERY_LEN)
@@ -82,7 +86,7 @@ export async function startResearch(raw: string): Promise<StartResult> {
 			status: 400,
 		};
 
-	const cached = await findCachedRun(normalizeQuery(query), CACHE_MS);
+	const cached = await findCachedRun(normalizeQuery(query), budget, CACHE_MS);
 	if (cached) return { ok: true, id: cached, cached: true };
 
 	if (live.size >= MAX_CONCURRENT)
@@ -105,7 +109,7 @@ export async function startResearch(raw: string): Promise<StartResult> {
 		) {
 			throw new Error("Invalid RESEARCH_DAILY_LIMIT configuration");
 		}
-		if (!(await insertRun(id, query, dailyLimit))) {
+		if (!(await insertRun(id, query, budget, dailyLimit))) {
 			live.delete(id);
 			return {
 				ok: false,
@@ -135,12 +139,12 @@ export async function startResearch(raw: string): Promise<StartResult> {
 		onEvent({
 			at: new Date().toISOString(),
 			kind: "status",
-			text: "Run queued; starting research agent",
+			text: `Run queued; search budget ${budgetLabel(budget)}`,
 		});
 		let msg: LiveMessage;
 		try {
-			const prompt = await withMemory(query, onEvent);
-			const out = await runResearch(prompt, onEvent);
+			const prompt = `${await withMemory(query, onEvent)}\n\n<budget seconds="${budget}"/>`;
+			const out = await runResearch(prompt, onEvent, hardTimeoutMs(budget));
 			msg = out.ok
 				? { type: "done", result: out.result, durationMs: out.durationMs }
 				: { type: "error", error: out.error, durationMs: out.durationMs };

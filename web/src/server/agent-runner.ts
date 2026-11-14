@@ -160,10 +160,11 @@ function toEvent(e: CodexEvent): AgentEvent | undefined {
 export function runResearch(
 	query: string,
 	onEvent: (e: AgentEvent) => void,
+	timeoutMs = TIMEOUT_MS,
 	signal?: AbortSignal,
 ): Promise<RunOutcome> {
 	if (process.env.AGENT_ENDPOINT)
-		return runRemoteResearch(query, onEvent, signal);
+		return runRemoteResearch(query, onEvent, timeoutMs, signal);
 	const started = Date.now();
 	const name = `brain0-agent-${randomUUID().slice(0, 8)}`;
 	const env: Record<string, string> = { PATH: process.env.PATH ?? "" };
@@ -201,8 +202,8 @@ export function runResearch(
 			spawn("docker", ["kill", name], { stdio: "ignore" });
 		};
 		const timer = setTimeout(
-			() => kill(`Timed out after ${TIMEOUT_MS / 1000}s`),
-			TIMEOUT_MS,
+			() => kill(`Timed out after ${Math.round(timeoutMs / 1000)}s`),
+			timeoutMs,
 		);
 		signal?.addEventListener("abort", () => kill("Cancelled"), { once: true });
 
@@ -259,6 +260,7 @@ export function runResearch(
 async function runRemoteResearch(
 	query: string,
 	onEvent: (e: AgentEvent) => void,
+	timeoutMs: number,
 	signal?: AbortSignal,
 ): Promise<RunOutcome> {
 	const started = Date.now();
@@ -278,7 +280,7 @@ async function runRemoteResearch(
 		text: "Starting agent container",
 	});
 	try {
-		const timeout = AbortSignal.timeout(TIMEOUT_MS);
+		const timeout = AbortSignal.timeout(timeoutMs);
 		const response = await fetch(process.env.AGENT_ENDPOINT, {
 			method: "POST",
 			headers: {

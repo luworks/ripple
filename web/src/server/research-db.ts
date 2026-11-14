@@ -42,6 +42,8 @@ function ensureSchema() {
 			on research_runs (normalized_query, created_at desc)`;
 		await sql`create index if not exists research_runs_created_idx
 			on research_runs (created_at desc)`;
+		// Additive: runs from before budgets have null (they ran the full method).
+		await sql`alter table research_runs add column if not exists budget_s int`;
 	})().catch((err) => {
 		ready = undefined;
 		throw err;
@@ -69,11 +71,17 @@ function toRow(r: Record<string, unknown>): RunRow {
 	};
 }
 
-export async function findCachedRun(normalized: string, withinMs: number) {
+// A run with at least the requested budget can answer; a quick run never serves a deep request.
+export async function findCachedRun(
+	normalized: string,
+	budget: number,
+	withinMs: number,
+) {
 	await ensureSchema();
 	const since = new Date(Date.now() - withinMs);
 	const [row] = await db()`select id from research_runs
 		where normalized_query = ${normalized} and status = 'done' and created_at > ${since}
+		and (budget_s is null or budget_s >= ${budget})
 		order by created_at desc limit 1`;
 	return (row?.id as string | undefined) ?? null;
 }
@@ -83,6 +91,7 @@ export async function findCachedRun(normalized: string, withinMs: number) {
 export async function insertRun(
 	id: string,
 	query: string,
+	budget: number,
 	dailyLimit?: number,
 ) {
 	await ensureSchema();
@@ -93,8 +102,8 @@ export async function insertRun(
 				where created_at > now() - interval '24 hours'`;
 			if (row.n >= dailyLimit) return false;
 		}
-		await tx`insert into research_runs (id, query, normalized_query, status)
-			values (${id}, ${query}, ${normalizeQuery(query)}, 'running')`;
+		await tx`insert into research_runs (id, query, normalized_query, status, budget_s)
+			values (${id}, ${query}, ${normalizeQuery(query)}, 'running', ${budget})`;
 		return true;
 	});
 }
