@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import type {
 	IChartApi,
 	ISeriesApi,
@@ -6,9 +6,22 @@ import type {
 	Time,
 	UTCTimestamp,
 } from "lightweight-charts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { timeline } from "#/data/jensen-huang-timeline";
-import { type Bar, getBars, type Interval } from "#/server/stock";
+import {
+	type Bar,
+	getBars,
+	INTERVALS,
+	type Interval,
+	type Packed,
+	unpack,
+} from "#/server/stock";
+
+const SYMBOL = "NVDA";
+
+// The interval lives in the URL (?i=5m). The loader runs during SSR, so the first chart's bars
+// arrive inside the HTML; other intervals are preloaded into the router cache after first paint.
+// Bars change only when scripts/fetch_stock.py runs, so cached loads never go stale in a session.
 
 export const Route = createFileRoute("/stock/nvda")({
 	head: () => ({
@@ -21,12 +34,25 @@ export const Route = createFileRoute("/stock/nvda")({
 			},
 		],
 	}),
+	validateSearch: (s: Record<string, unknown>): { i?: Interval } =>
+		INTERVALS.includes(s.i as Interval) ? { i: s.i as Interval } : {},
+	loaderDeps: ({ search }) => ({ i: search.i ?? "1m" }),
+	loader: async ({ deps }) =>
+		JSON.parse(
+			await getBars({ data: { symbol: SYMBOL, interval: deps.i } }),
+		) as Packed,
+	staleTime: Number.POSITIVE_INFINITY,
+	preloadStaleTime: Number.POSITIVE_INFINITY,
+	gcTime: 60 * 60 * 1000,
 	component: NvdaPage,
 });
 
+// Start downloading the chart library as soon as this module loads in the browser.
+const lcModule =
+	typeof window === "undefined" ? null : import("lightweight-charts");
+
 /* ------------------------------------------------------------------ data */
 
-const SYMBOL = "NVDA";
 const TZ = "America/New_York";
 
 const intervals: { id: Interval; label: string; span: string }[] = [
@@ -107,11 +133,11 @@ function snap(bars: Bar[], t: number): number | null {
 // Center the chart on time `at` (0 = latest), with a window sized to the interval.
 function focusChart(
 	c: IChartApi | null,
-	bars: Bar[] | null,
+	bars: Bar[],
 	interval: Interval,
 	at: number,
 ) {
-	if (!c || !bars?.length) return;
+	if (!c || !bars.length) return;
 	const last = bars[bars.length - 1].time;
 	const span =
 		interval === "1m"
@@ -178,10 +204,10 @@ function OurChart() {
 	const candles = useRef<ISeriesApi<"Candlestick"> | null>(null);
 	const volume = useRef<ISeriesApi<"Histogram"> | null>(null);
 	const markersApi = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
-	const cache = useRef(new Map<Interval, Bar[]>());
-	const [interval, setIv] = useState<Interval>("1m");
-	const [bars, setBars] = useState<Bar[] | null>(null);
-	const [error, setError] = useState<string | null>(null);
+	const router = useRouter();
+	const { i: interval } = Route.useLoaderDeps();
+	const packed = Route.useLoaderData();
+	const bars = useMemo(() => unpack(packed), [packed]);
 	const [hover, setHover] = useState<Bar | null>(null);
 	const [ready, setReady] = useState(false);
 
@@ -189,7 +215,7 @@ function OurChart() {
 	useEffect(() => {
 		let disposed = false;
 		let cleanup = () => {};
-		import("lightweight-charts").then((lc) => {
+		lcModule?.then((lc) => {
 			if (disposed || !box.current) return;
 			const timeLabel = (t: number) => fmtFull.format(t * 1000);
 			const c = lc.createChart(box.current, {
@@ -252,30 +278,27 @@ function OurChart() {
 		};
 	}, []);
 
-	// Load bars for the chosen interval (cached per interval).
+	// Once the first chart is drawn, pull every other interval into the router cache, one at a
+	// time, so switching intervals never waits on the network.
 	useEffect(() => {
-		const hit = cache.current.get(interval);
-		if (hit) {
-			setBars(hit);
-			return;
-		}
-		let stale = false;
-		setBars(null);
-		setError(null);
-		getBars({ data: { symbol: SYMBOL, interval } })
-			.then((r: { bars: Bar[] }) => {
-				cache.current.set(interval, r.bars);
-				if (!stale) setBars(r.bars);
-			})
-			.catch((e: Error) => !stale && setError(String(e?.message ?? e)));
+		if (!ready) return;
+		let cancelled = false;
+		(async () => {
+			for (const i of INTERVALS) {
+				if (cancelled) return;
+				await router
+					.preloadRoute({ to: "/stock/nvda", search: { i } })
+					.catch(() => {});
+			}
+		})();
 		return () => {
-			stale = true;
+			cancelled = true;
 		};
-	}, [interval]);
+	}, [ready, router]);
 
 	// Push bars + markers into the chart.
 	useEffect(() => {
-		if (!ready || !bars || !chart.current) return;
+		if (!ready || !bars.length || !chart.current) return;
 		const t = (x: number) => x as UTCTimestamp;
 		candles.current?.setData(
 			bars.map((b) => ({
@@ -326,8 +349,8 @@ function OurChart() {
 		);
 	}, [bars, ready, interval]);
 
-	const last = bars?.[bars.length - 1];
-	const prev = bars?.[bars.length - 2];
+	const last = bars.at(-1);
+	const prev = bars.at(-2);
 	const shown = hover ?? last;
 	const events = intraday(interval) ? minuteEvents : dayEvents;
 
@@ -335,19 +358,21 @@ function OurChart() {
 		<section className="mt-4">
 			<div className="flex flex-wrap items-center gap-1">
 				{intervals.map((i) => (
-					<button
+					<Link
 						key={i.id}
-						type="button"
+						to="/stock/nvda"
+						search={i.id === "1m" ? {} : { i: i.id }}
+						replace
+						resetScroll={false}
 						title={i.span}
-						onClick={() => setIv(i.id)}
 						className={`rounded-md px-2.5 py-1 text-sm ${interval === i.id ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}`}
 					>
 						{i.label}
-					</button>
+					</Link>
 				))}
 				<span className="ml-2 text-xs text-zinc-500">
 					{intervals.find((i) => i.id === interval)?.span} ·{" "}
-					{bars ? `${bars.length.toLocaleString()} bars` : "loading…"}
+					{bars.length.toLocaleString()} bars
 				</span>
 			</div>
 
@@ -379,11 +404,6 @@ function OurChart() {
 
 			<div className="relative mt-2 h-[520px] overflow-hidden rounded-lg border border-zinc-800">
 				<div ref={box} className="absolute inset-0" />
-				{error && (
-					<p className="absolute inset-0 grid place-items-center text-sm text-red-400">
-						Could not load bars: {error}
-					</p>
-				)}
 			</div>
 
 			<p className="mt-2 text-xs text-zinc-500">
