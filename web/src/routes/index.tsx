@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { getDbHealth } from "#/server/health";
 
 export const Route = createFileRoute("/")({
@@ -61,6 +61,24 @@ function Home() {
 						)}
 					</dl>
 				</section>
+
+				<Link
+					to="/events/jensen-huang"
+					className="group rounded-2xl border border-zinc-800 p-6 transition-colors hover:border-emerald-400/50"
+				>
+					<span className="text-xs font-medium uppercase tracking-wider text-emerald-400">
+						Event brief
+					</span>
+					<div className="mt-2 text-xl font-medium">
+						Jensen Huang resigns as Nvidia CEO{" "}
+						<span className="text-zinc-500 group-hover:text-emerald-400">
+							→
+						</span>
+					</div>
+					<p className="mt-2 text-sm text-zinc-500">
+						Timeline and social pulse across 21 platforms, collected with Telem.
+					</p>
+				</Link>
 
 				<section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 					{stack.map((s) => (
