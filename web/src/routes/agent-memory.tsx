@@ -4,12 +4,24 @@ import { TimelineView } from "#/components/agent-memory/TimelineView";
 import { getAgentMemoryOverview } from "#/server/agent-memory/overview";
 
 type View = "recall" | "timeline";
-type Search = { view?: View; q?: string };
+type Search = {
+	view?: View;
+	q?: string;
+	session?: string;
+	machine?: string;
+	agent?: string;
+};
+
+const param = (v: unknown) =>
+	typeof v === "string" && v.trim() ? v.trim().slice(0, 64) : undefined;
 
 export const Route = createFileRoute("/agent-memory")({
 	validateSearch: (s: Record<string, unknown>): Search => ({
 		view: s.view === "timeline" ? "timeline" : undefined,
 		q: typeof s.q === "string" && s.q.trim() ? s.q.slice(0, 200) : undefined,
+		session: param(s.session),
+		machine: param(s.machine),
+		agent: param(s.agent),
 	}),
 	loader: () => getAgentMemoryOverview(),
 	head: () => ({ meta: [{ title: "Agent Memory · brain0" }] }),
@@ -20,7 +32,7 @@ const fmt = new Intl.NumberFormat("en-US");
 
 function AgentMemory() {
 	const o = Route.useLoaderData();
-	const { view = "recall", q } = Route.useSearch();
+	const { view = "recall", q, session, machine, agent } = Route.useSearch();
 
 	return (
 		<main className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
@@ -58,7 +70,11 @@ function AgentMemory() {
 					</span>
 				</nav>
 
-				{view === "timeline" ? <TimelineView /> : <RecallView q={q} />}
+				{view === "timeline" ? (
+					<TimelineView session={session} machine={machine} agent={agent} />
+				) : (
+					<RecallView q={q} />
+				)}
 			</div>
 		</main>
 	);
