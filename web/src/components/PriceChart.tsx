@@ -205,7 +205,9 @@ export function PriceChart({
 				{sessions.map((s, k) => {
 					// Drop a day label that would collide with the previous one.
 					const gap = compact ? 48 : 86;
-					const showLabel = k === 0 || x(s.i) - x(sessions[k - 1].i) >= gap;
+					const showLabel =
+						(k === 0 || x(s.i) - x(sessions[k - 1].i) >= gap) &&
+						x(s.i) <= W - M.right - gap * 0.7;
 					return (
 						<g key={s.i}>
 							{k > 0 && (

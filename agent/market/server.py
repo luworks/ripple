@@ -17,6 +17,9 @@ CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{}"
 # Yahoo keeps intraday bars only for limited lookbacks.
 # Read-only + open-world tools are auto-approved by Codex under approval_policy="never".
 READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
+# Fetch a little before the window so the first bar is the last price before it (a 1d window that
+# starts on the event day would otherwise use that day's close as baseline). Covers weekend + holiday.
+BASELINE_LOOKBACK_S = 4 * 86400
 MAX_DAYS = {"1m": 7, "5m": 59, "15m": 59, "1h": 729, "1d": 100000}
 
 
@@ -76,6 +79,7 @@ def price_history(symbol: str, start: str, end: str, interval: str = "1d", event
     interval: 1m (last 7 days only), 5m/15m (last 60 days), 1h, 1d.
     events: optional ISO-8601 UTC times (e.g. news publish times); for each, returns the last price
     before it and the change 30 min, 2 h and 1 day later, so you can attribute moves to news.
+    The first bar is the last one before start, used as the change_pct baseline.
     Includes extended-hours bars. Returns at most ~40 sampled points to stay compact.
     """
     s, e = _ts(start), _ts(end)
@@ -83,8 +87,11 @@ def price_history(symbol: str, start: str, end: str, interval: str = "1d", event
         return {"error": f"interval must be one of {list(MAX_DAYS)}"}
     if (dt.datetime.now(dt.UTC).timestamp() - s) / 86400 > MAX_DAYS[interval]:
         return {"error": f"{interval} bars only exist for the last {MAX_DAYS[interval]} days; use a coarser interval"}
-    meta, bars = _bars(symbol, s, e, interval)
-    if not bars:
+    oldest = int(dt.datetime.now(dt.UTC).timestamp()) - MAX_DAYS[interval] * 86400
+    meta, bars = _bars(symbol, max(s - BASELINE_LOOKBACK_S, oldest), e, interval)
+    pre = [b for b in bars if b[0] < s]
+    bars = pre[-1:] + [b for b in bars if b[0] >= s]
+    if len(bars) <= len(pre[-1:]):
         return {"symbol": symbol, "error": "no bars in window (market closed or bad symbol?)"}
     closes = [c for _, c, _ in bars]
     first, last = bars[0], bars[-1]

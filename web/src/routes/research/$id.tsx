@@ -369,7 +369,7 @@ function ResultView({
 					)}
 				</div>
 				<p className="mt-3 text-xs text-zinc-600">
-					% change from the first bar in the window (
+					% change from the last close before the window (
 					{formatPT(r.market.window_start)} – {formatPT(r.market.window_end)}),{" "}
 					{r.market.interval} bars from Yahoo Finance. Prices never come from
 					the agent's text.

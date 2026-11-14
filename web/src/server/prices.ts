@@ -8,6 +8,10 @@ const cache = new Map<string, { at: number; value: PriceSeries }>();
 
 // Yahoo rate-limits full browser UA strings from our host; the bare token works.
 const UA = "Mozilla/5.0";
+// Fetch a little before the window so the first point is the last price *before* it.
+// Without it a 1d window starting on the event day uses that day's close as baseline
+// and hides the event-day move. 4 days covers a weekend plus a holiday.
+const BASELINE_LOOKBACK_S = 4 * 86400;
 
 async function fetchChart(
 	symbol: string,
@@ -15,7 +19,7 @@ async function fetchChart(
 	p2: number,
 	interval: Interval,
 ): Promise<PriceSeries | null> {
-	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${p1}&period2=${p2}&includePrePost=false`;
+	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${p1 - BASELINE_LOOKBACK_S}&period2=${p2}&includePrePost=false`;
 	const res = await fetch(url, {
 		headers: { "User-Agent": UA },
 		signal: AbortSignal.timeout(8000),
@@ -34,17 +38,15 @@ async function fetchChart(
 	const ts = r?.timestamp ?? [];
 	const closes = r?.indicators?.quote?.[0]?.close ?? [];
 	const points: PriceSeries["points"] = [];
+	let baseline: PriceSeries["points"][number] | null = null;
 	for (let i = 0; i < ts.length; i++) {
 		const c = closes[i];
+		if (typeof c !== "number" || !Number.isFinite(c)) continue;
 		// Yahoo appends the latest live bar even when p2 is in the past; keep only the window.
-		if (
-			typeof c === "number" &&
-			Number.isFinite(c) &&
-			ts[i] >= p1 &&
-			ts[i] <= p2
-		)
-			points.push({ t: ts[i], c });
+		if (ts[i] < p1) baseline = { t: ts[i], c };
+		else if (ts[i] <= p2) points.push({ t: ts[i], c });
 	}
+	if (baseline && points.length) points.unshift(baseline);
 	if (!points.length) return null;
 	return { symbol, currency: r?.meta?.currency ?? null, points };
 }
