@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TavilyRouteImport } from './routes/tavily'
 import { Route as TelemRouteImport } from './routes/telem'
 import { Route as EventsJensenHuangRouteImport } from './routes/events/jensen-huang'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TavilyRoute = TavilyRouteImport.update({
+  id: '/tavily',
+  path: '/tavily',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TelemRoute = TelemRouteImport.update({
@@ -31,30 +37,34 @@ const EventsJensenHuangRoute = EventsJensenHuangRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/tavily': typeof TavilyRoute
   '/telem': typeof TelemRoute
   '/events/jensen-huang': typeof EventsJensenHuangRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/telem' | '/events/jensen-huang'
+  fullPaths: '/' | '/tavily' | '/telem' | '/events/jensen-huang'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/telem' | '/events/jensen-huang'
-  id: '__root__' | '/' | '/telem' | '/events/jensen-huang'
+  to: '/' | '/tavily' | '/telem' | '/events/jensen-huang'
+  id: '__root__' | '/' | '/tavily' | '/telem' | '/events/jensen-huang'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TavilyRoute: typeof TavilyRoute
   TelemRoute: typeof TelemRoute
   EventsJensenHuangRoute: typeof EventsJensenHuangRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tavily': {
+      id: '/tavily'
+      path: '/tavily'
+      fullPath: '/tavily'
+      preLoaderRoute: typeof TavilyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/telem': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TavilyRoute: TavilyRoute,
   TelemRoute: TelemRoute,
   EventsJensenHuangRoute: EventsJensenHuangRoute,
 }
