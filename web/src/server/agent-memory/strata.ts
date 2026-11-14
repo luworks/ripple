@@ -265,11 +265,14 @@ const iso = (d: Date | string) => new Date(d).toISOString();
 async function sessionsIn(sql: Sql, from: Date, to: Date): Promise<Cluster[]> {
 	const [agentSessions, runs] = await Promise.all([
 		sql`with s as (
-				select session_key, agent, machine, min(ts) as start, max(ts) as "end", count(*)::int as n
+				-- A session synced to several machines is one session: name one machine and
+				-- count each search once.
+				select session_key, min(agent) as agent, min(machine) as machine, min(ts) as start,
+					max(ts) as "end", count(distinct (ts, query_text))::int as n
 				from hackathon_agent_data.demo_events
 				where event_type = 'search_operation' and query_text is not null
 					and ts >= ${from} and ts < ${to}
-				group by 1, 2, 3 order by max(ts) desc limit ${MAX_SESSIONS}
+				group by 1 order by max(ts) desc limit ${MAX_SESSIONS}
 			)
 			select s.*,
 				(select json_agg(q order by q.at) from (

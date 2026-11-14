@@ -41,15 +41,18 @@ export function SourceTag({ name }: { name: string }) {
 }
 
 // One card per agent session or research run in the selected bucket; open one to see
-// what it searched and which pages it kept.
+// what it searched and which pages it kept. Fixed heights (2 rows of 10rem cards, a
+// 26rem detail panel) keep the page still while hovering through buckets.
 export function Sessions({ sessions }: { sessions: Cluster[] }) {
 	const [open, setOpen] = useState<string | null>(sessions[0]?.id ?? null);
 	const sel = sessions.find((c) => c.id === open);
 	if (!sessions.length)
-		return <p className="text-sm text-zinc-500">No visible sessions.</p>;
+		return (
+			<p className="h-[47.75rem] text-sm text-zinc-500">No visible sessions.</p>
+		);
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid h-[20.75rem] auto-rows-[10rem] grid-cols-1 content-start gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-4">
 				{sessions.map((c) => (
 					<SessionCard
 						key={c.id}
@@ -59,7 +62,7 @@ export function Sessions({ sessions }: { sessions: Cluster[] }) {
 					/>
 				))}
 			</div>
-			{sel && <SessionDetail c={sel} />}
+			{sel ? <SessionDetail c={sel} /> : <div className="h-[26rem]" />}
 		</div>
 	);
 }
@@ -78,7 +81,7 @@ function SessionCard({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors ${active ? (c.memory ? "border-emerald-400/60 bg-zinc-900/60" : "border-sky-400/60 bg-zinc-900/60") : c.memory ? "border-emerald-500/30 hover:border-emerald-400/50" : "border-zinc-800 hover:border-zinc-600"}`}
+			className={`flex flex-col gap-2 overflow-hidden rounded-2xl border p-4 text-left transition-colors ${active ? (c.memory ? "border-emerald-400/60 bg-zinc-900/60" : "border-sky-400/60 bg-zinc-900/60") : c.memory ? "border-emerald-500/30 hover:border-emerald-400/50" : "border-zinc-800 hover:border-zinc-600"}`}
 		>
 			<span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-zinc-500">
 				{time(c.start)}
@@ -87,13 +90,19 @@ function SessionCard({
 					<SourceTag key={e} name={e} />
 				))}
 			</span>
-			<span className="line-clamp-2 font-medium leading-snug">{c.title}</span>
-			<span className="text-xs text-zinc-500">
+			<span className="line-clamp-2 shrink-0 font-medium leading-snug">
+				{c.title}
+			</span>
+			<span
+				className={`${c.memory ? "line-clamp-1" : "line-clamp-2"} text-xs text-zinc-500`}
+			>
 				{c.who} · {c.n} {c.n === 1 ? "search" : "searches"}
 				{c.pages.length ? ` · ${c.pages.length} pages` : ""}
 			</span>
 			{c.memory && (
-				<span className="text-xs text-emerald-300">{savedLine(c.memory)}</span>
+				<span className="line-clamp-1 text-xs text-emerald-300">
+					{savedLine(c.memory)}
+				</span>
 			)}
 		</button>
 	);
@@ -148,16 +157,18 @@ function MemoryDetail({ c, m }: { c: Cluster; m: MemoryHit }) {
 
 function SessionDetail({ c }: { c: Cluster }) {
 	return (
-		<div className="grid grid-cols-1 gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 lg:grid-cols-2">
+		<div
+			className={`grid h-[26rem] grid-cols-1 gap-8 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 lg:grid-cols-2 lg:overflow-hidden ${c.memory ? "lg:grid-rows-[auto_minmax(0,1fr)]" : "lg:grid-rows-[minmax(0,1fr)]"}`}
+		>
 			{c.memory && <MemoryDetail c={c} m={c.memory} />}
-			<div className="flex flex-col gap-3">
+			<div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
 				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
 					What it searched
 				</span>
 				<ol className="flex flex-col gap-2">
-					{c.searches.map((s) => (
+					{c.searches.map((s, i) => (
 						<li
-							key={`${s.at}-${s.text}`}
+							key={`${i}-${s.text}`}
 							className="grid grid-cols-[4.5rem_1fr] gap-3 text-sm"
 						>
 							<span className="font-mono text-xs leading-5 text-zinc-500">
@@ -171,7 +182,7 @@ function SessionDetail({ c }: { c: Cluster }) {
 					))}
 				</ol>
 			</div>
-			<div className="flex flex-col gap-3">
+			<div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
 				<span className="text-xs font-medium uppercase tracking-wider text-sky-400">
 					What it kept
 				</span>
@@ -179,10 +190,13 @@ function SessionDetail({ c }: { c: Cluster }) {
 					<p className="text-sm text-zinc-500">No pages opened.</p>
 				)}
 				<ul className="flex flex-col gap-3">
-					{c.pages.map((p) => {
+					{c.pages.map((p, i) => {
 						const [host, ...path] = p.url.split("/");
 						return (
-							<li key={p.url} className="flex flex-col gap-0.5 text-sm">
+							<li
+								key={`${i}-${p.url}`}
+								className="flex flex-col gap-0.5 text-sm"
+							>
 								{p.title && <span className="font-medium">{p.title}</span>}
 								<span className="break-all font-mono text-xs">
 									<span className="text-zinc-300">{host}</span>

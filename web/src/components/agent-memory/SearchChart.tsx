@@ -51,6 +51,12 @@ function tick(t: string, i: number, g: Grain) {
 	return hh === 0 ? at(t, { weekday: "short", day: "numeric" }) : hourLabel(hh);
 }
 
+// Pixel height of a log-scaled count; bars and y-axis ticks share it so they line up.
+const y = (n: number, max: number) =>
+	Math.round(4 + (Math.log10(n + 1) / Math.log10(max + 1)) * (H - 4));
+const short = (v: number) =>
+	v >= 1e6 ? `${v / 1e6}M` : v >= 1e3 ? `${v / 1e3}k` : String(v);
+
 // Stacked log-scale bars: the total's height is log-scaled, then split by source so a
 // handful of Tavily/Telem calls stays visible next to a 100k-search batch night.
 // Small sources get at least 2px; the largest source absorbs the rounding.
@@ -58,7 +64,7 @@ function segments(b: Bucket, max: number) {
 	const n = total(b);
 	const parts = SOURCES.map((s) => b[s.key]);
 	if (!n) return parts.map(() => 0);
-	const h = Math.round(4 + (Math.log10(n + 1) / Math.log10(max + 1)) * (H - 4));
+	const h = y(n, max);
 	const px = parts.map((k) => (k ? Math.max(2, Math.round((h * k) / n)) : 0));
 	const big = parts.indexOf(Math.max(...parts));
 	px[big] = Math.max(2, h - px.reduce((s, p, i) => (i === big ? s : s + p), 0));
@@ -88,11 +94,10 @@ export function SearchChart({
 	const b = rows[shown];
 	const key = `${grain}|${b.t}`;
 	const detail = details[key];
-	// While the next bucket loads, keep the last one on screen (dimmed) so the page
-	// never collapses and jumps.
-	const lastDetail = useRef(detail);
-	if (detail) lastDetail.current = detail;
-	const view = detail ?? lastDetail.current;
+	// While a new bucket loads, keep the last one on screen (dimmed) so nothing collapses.
+	const lastShown = useRef({ key, detail: initialDetail });
+	if (detail) lastShown.current = { key, detail };
+	const shownDetail = lastShown.current;
 	const current = useRef({ grain, t: b.t, key });
 	current.current = { grain, t: b.t, key };
 
@@ -146,14 +151,19 @@ export function SearchChart({
 	const max = Math.max(...rows.map(total), 1);
 	const peak = rows.reduce((a, r, i) => (total(r) > total(rows[a]) ? i : a), 0);
 	const pct = (i: number) => ((i + 0.5) / rows.length) * 100;
-	const ticks = rows.flatMap((r, i) => {
-		const label = tick(r.t, i, grain);
-		return label ? [{ i, label }] : [];
-	});
+	const yTicks: number[] = [];
+	for (let v = 1; v <= max; v *= 10) yTicks.push(v);
+	// Drop a tick that sits too close to the next one (e.g. a partial first month).
+	const ticks = rows
+		.flatMap((r, i) => {
+			const label = tick(r.t, i, grain);
+			return label ? [{ i, label }] : [];
+		})
+		.filter((t, k, a) => !a[k + 1] || a[k + 1].i - t.i >= rows.length / 12);
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-start justify-between gap-4">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div className="flex flex-col gap-2">
 					<span className="text-sm text-zinc-400">
 						{bucketLabel(b.t, grain)}
@@ -206,62 +216,89 @@ export function SearchChart({
 				))}
 			</div>
 
-			<div className="flex flex-col gap-2">
-				<div className="relative">
-					{grain === "day" && total(rows[peak]) > 0 && (
+			<div className="flex">
+				<div
+					className="relative w-11 shrink-0 font-mono text-[10px] text-zinc-500"
+					style={{ height: H + 20 }}
+				>
+					<span className="absolute top-1/2 left-0 -translate-y-1/2 rotate-180 whitespace-nowrap font-sans text-zinc-600 [writing-mode:vertical-rl]">
+						searches (log)
+					</span>
+					{yTicks.map((v) => (
 						<span
-							className="absolute top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] text-zinc-500"
-							style={{ left: `${Math.min(Math.max(pct(peak), 12), 88)}%` }}
+							key={v}
+							className="absolute right-1.5 translate-y-1/2 leading-none"
+							style={{ bottom: y(v, max) }}
 						>
-							{at(rows[peak].t, { month: "short", day: "numeric" })} ·{" "}
-							{total(rows[peak]) > 10_000 ? "overnight batch, " : "peak, "}
-							{fmt.format(total(rows[peak]))}
-						</span>
-					)}
-					<fieldset
-						className="m-0 flex items-end gap-px border-0 p-0 pt-5"
-						style={{ height: H + 20 }}
-						onMouseLeave={() => setHover(null)}
-					>
-						{rows.map((r, i) => {
-							const px = segments(r, max);
-							return (
-								<button
-									type="button"
-									key={r.t}
-									aria-label={`${bucketLabel(r.t, grain)}: ${total(r)} searches`}
-									// pointermove, not mouseenter: scrolling past a still cursor fires
-									// mouseenter on each bar and would re-render the page mid-scroll.
-									onPointerMove={() => hover !== i && setHover(i)}
-									onFocus={() => setHover(i)}
-									onClick={() => setHover(i)}
-									className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
-								>
-									{SOURCES.map((s, j) => (
-										<span
-											key={s.key}
-											className={`w-full shrink-0 ${s.color}`}
-											style={{ height: px[j] }}
-										/>
-									))}
-								</button>
-							);
-						})}
-					</fieldset>
-				</div>
-				<div className="relative h-4 border-t border-zinc-800 font-mono text-[10px] text-zinc-500">
-					{ticks.map((t) => (
-						<span
-							key={t.i}
-							className="absolute top-1 whitespace-nowrap"
-							style={{ left: `${(t.i / rows.length) * 100}%` }}
-						>
-							{t.label}
+							{short(v)}
 						</span>
 					))}
-					<span className="absolute top-1 right-0 bg-zinc-950 pl-1 text-emerald-400">
-						now
-					</span>
+				</div>
+				<div className="flex min-w-0 flex-1 flex-col gap-2">
+					<div className="relative">
+						{yTicks.map((v) => (
+							<span
+								key={v}
+								className="pointer-events-none absolute inset-x-0 border-t border-dashed border-zinc-800/60"
+								style={{ bottom: y(v, max) }}
+							/>
+						))}
+						{grain === "day" && total(rows[peak]) > 0 && (
+							<span
+								className="absolute top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] text-zinc-500"
+								style={{ left: `${Math.min(Math.max(pct(peak), 12), 88)}%` }}
+							>
+								{at(rows[peak].t, { month: "short", day: "numeric" })} ·{" "}
+								{total(rows[peak]) > 10_000 ? "overnight batch, " : "peak, "}
+								{fmt.format(total(rows[peak]))}
+							</span>
+						)}
+						<fieldset
+							className="relative m-0 flex items-end gap-px border-0 p-0 pt-5"
+							style={{ height: H + 20 }}
+							onMouseLeave={() => setHover(null)}
+						>
+							{rows.map((r, i) => {
+								const px = segments(r, max);
+								return (
+									<button
+										type="button"
+										key={r.t}
+										aria-label={`${bucketLabel(r.t, grain)}: ${total(r)} searches`}
+										// pointermove, not mouseenter: scrolling past a still cursor fires
+										// mouseenter on each bar and would re-render the page mid-scroll.
+										onPointerMove={() => hover !== i && setHover(i)}
+										onFocus={() => setHover(i)}
+										onClick={() => setHover(i)}
+										className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
+									>
+										{SOURCES.map((s, j) => (
+											<span
+												key={s.key}
+												className={`w-full shrink-0 ${s.color}`}
+												style={{ height: px[j] }}
+											/>
+										))}
+									</button>
+								);
+							})}
+						</fieldset>
+					</div>
+					<div className="relative h-4 border-t border-zinc-800 font-mono text-[10px] text-zinc-500">
+						{ticks.map((t) => (
+							<span
+								key={t.i}
+								className="absolute top-1 whitespace-nowrap"
+								style={{ left: `${(t.i / rows.length) * 100}%` }}
+							>
+								{t.label}
+							</span>
+						))}
+						<span className="absolute top-1 right-0 bg-zinc-950 pl-1 text-emerald-400">
+							now
+						</span>
+					</div>
+					<span className="self-end text-[10px] text-zinc-600">time (PT)</span>
 				</div>
 			</div>
 
@@ -269,14 +306,15 @@ export function SearchChart({
 				className={`flex flex-col gap-8 border-t border-zinc-800 pt-6 transition-opacity ${detail ? "" : "opacity-50"}`}
 			>
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-					<TopDomains detail={view} />
-					<Queries detail={view} />
+					<TopDomains detail={shownDetail.detail} />
+					<Queries detail={shownDetail.detail} />
 				</div>
 				<div className="flex flex-col gap-3">
 					<Label>Sessions in this slot</Label>
-					{view && (
-						<Sessions key={`${grain}|${view.t}`} sessions={view.sessions} />
-					)}
+					<Sessions
+						key={shownDetail.key}
+						sessions={shownDetail.detail.sessions}
+					/>
 				</div>
 			</div>
 		</div>
@@ -291,20 +329,21 @@ function Label({ children }: { children: string }) {
 	);
 }
 
-function TopDomains({ detail }: { detail?: Detail }) {
-	const d = detail?.domains ?? [];
+// Fixed-height lists (5 domains, 6 queries, 20px rows) so hovering never moves the page.
+function TopDomains({ detail }: { detail: Detail }) {
+	const d = detail.domains;
 	const top = d[0]?.n ?? 1;
 	return (
 		<div className="flex flex-col gap-3">
 			<Label>Top domains</Label>
-			{detail && d.length === 0 && (
-				<p className="text-sm text-zinc-500">No pages recorded.</p>
-			)}
-			<ol className="flex flex-col gap-2">
+			<ol className="flex h-[8.25rem] flex-col gap-2 overflow-hidden">
+				{d.length === 0 && (
+					<li className="text-sm text-zinc-500">No pages recorded.</li>
+				)}
 				{d.map((x, i) => (
 					<li
 						key={x.d}
-						className="grid grid-cols-[1.25rem_minmax(0,11rem)_1fr_3.5rem] items-center gap-3 text-sm"
+						className="grid h-5 shrink-0 grid-cols-[1.25rem_minmax(0,11rem)_1fr_3.5rem] items-center gap-3 text-sm"
 					>
 						<span className="font-mono text-xs text-zinc-500">{i + 1}</span>
 						<span className="truncate font-mono text-zinc-100">{x.d}</span>
@@ -324,19 +363,19 @@ function TopDomains({ detail }: { detail?: Detail }) {
 	);
 }
 
-function Queries({ detail }: { detail?: Detail }) {
-	const q = detail?.queries ?? [];
+function Queries({ detail }: { detail: Detail }) {
+	const q = detail.queries;
 	return (
 		<div className="flex flex-col gap-3">
 			<Label>What was searched, and by whom</Label>
-			{detail && q.length === 0 && (
-				<p className="text-sm text-zinc-500">No visible queries.</p>
-			)}
-			<ul className="flex flex-col gap-2">
+			<ul className="flex h-40 flex-col gap-2 overflow-hidden">
+				{q.length === 0 && (
+					<li className="text-sm text-zinc-500">No visible queries.</li>
+				)}
 				{q.map((x) => (
 					<li
 						key={`${x.engine}-${x.text}`}
-						className="grid grid-cols-[6.5rem_1fr_auto] items-baseline gap-3 text-sm"
+						className="grid h-5 shrink-0 grid-cols-[6.5rem_1fr_auto] items-baseline gap-3 text-sm"
 					>
 						<SourceTag name={x.engine} />
 						<span className="line-clamp-1 text-zinc-200">{x.text}</span>
