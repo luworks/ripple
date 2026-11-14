@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router";
 import type {
 	IChartApi,
 	ISeriesApi,
@@ -11,13 +16,29 @@ import sourcesData from "#/data/nvda-sources.json";
 import {
 	type Bar,
 	getBars,
+	getSecondBars,
 	INTERVALS,
 	type Interval,
 	type Packed,
+	type SecondSlice,
 	unpack,
 } from "#/server/stock";
 
 const SYMBOL = "NVDA";
+
+// "1s" is served in time windows (getSecondBars), so it is a view here, not a file interval.
+type View = Interval | "1s";
+// The second NVIDIA's CEO-transition release went out; 1s views measure everything from here.
+const T0 = Date.parse("2026-11-12T13:48:12Z") / 1000;
+// A 1s load covers [t - BEFORE, t + AFTER): ~30 min of bars, well under the server's 2 h cap.
+const SEC_BEFORE = 600;
+const SEC_AFTER = 1200;
+const parseT = (v: unknown): number | undefined => {
+	if (typeof v === "number" && Number.isFinite(v)) return Math.floor(v);
+	if (typeof v !== "string" || !v) return undefined;
+	const n = /^\d+$/.test(v) ? Number(v) : Date.parse(v) / 1000;
+	return Number.isFinite(n) ? Math.floor(n) : undefined;
+};
 
 // The interval lives in the URL (?i=5m). The loader runs during SSR, so the first chart's bars
 // arrive inside the HTML; other intervals are preloaded into the router cache after first paint.
@@ -33,14 +54,38 @@ export const Route = createFileRoute("/stock/nvda")({
 			},
 		],
 	}),
-	validateSearch: (s: Record<string, unknown>): { i?: Interval } =>
-		INTERVALS.includes(s.i as Interval) ? { i: s.i as Interval } : {},
-	loaderDeps: ({ search }) => ({ i: search.i ?? "1m" }),
+	validateSearch: (s: Record<string, unknown>): { i?: View; t?: number } => {
+		const out: { i?: View; t?: number } = {};
+		if (s.i === "1s" || INTERVALS.includes(s.i as Interval))
+			out.i = s.i as View;
+		const t = parseT(s.t);
+		if (out.i === "1s" && t !== undefined) out.t = t;
+		return out;
+	},
+	loaderDeps: ({ search }) => ({
+		i: (search.i ?? "1m") as View,
+		t: search.i === "1s" ? (search.t ?? T0) : T0,
+	}),
 	loader: async ({ deps }) => {
+		if (deps.i === "1s") {
+			const slice = JSON.parse(
+				await getSecondBars({
+					data: {
+						symbol: SYMBOL,
+						from: deps.t - SEC_BEFORE,
+						to: deps.t + SEC_AFTER,
+					},
+				}),
+			) as SecondSlice;
+			// No 1s file on this deploy (or nothing in that window): fall back to minute bars.
+			if (slice.start === null || !slice.packed.t.length)
+				throw redirect({ to: "/stock/nvda", search: {}, replace: true });
+			return { packed: slice.packed, center: deps.t };
+		}
 		const packed = await getBars({
 			data: { symbol: SYMBOL, interval: deps.i },
 		});
-		return { packed: JSON.parse(packed) as Packed };
+		return { packed: JSON.parse(packed) as Packed, center: null };
 	},
 	staleTime: Number.POSITIVE_INFINITY,
 	preloadStaleTime: Number.POSITIVE_INFINITY,
@@ -231,7 +276,8 @@ const dayPins: Pin[] = timeline.map((e, i) => ({
 	detail: e.detail,
 }));
 
-const intervals: { id: Interval; label: string; span: string }[] = [
+const intervals: { id: View; label: string; span: string }[] = [
+	{ id: "1s", label: "1s", span: "Oct 16 – Nov 13, 30 min at a time" },
 	{ id: "1m", label: "1m", span: "last ~30 days" },
 	{ id: "2m", label: "2m", span: "last 60 days" },
 	{ id: "5m", label: "5m", span: "last 60 days" },
@@ -250,7 +296,7 @@ const BAR_MIN: Partial<Record<Interval, number>> = {
 	"30m": 30,
 	"1h": 60,
 };
-const intraday = (i: Interval) => !["1d", "1wk", "1mo"].includes(i);
+const intraday = (i: View) => !["1d", "1wk", "1mo"].includes(i);
 
 /* ------------------------------------------------------------------ formatting */
 
@@ -363,7 +409,19 @@ function lowerBound(list: Item[], t: number): number {
 	return lo;
 }
 
-function defaultView(c: IChartApi, bars: Bar[], interval: Interval) {
+function defaultView(
+	c: IChartApi,
+	bars: Bar[],
+	interval: View,
+	center: number | null,
+) {
+	if (interval === "1s" && center !== null) {
+		c.timeScale().setVisibleRange({
+			from: (center - 180) as UTCTimestamp,
+			to: (center + 420) as UTCTimestamp,
+		});
+		return;
+	}
 	const last = bars[bars.length - 1].time;
 	if (intraday(interval) && bars[0].time < REPLAY_VIEW[0]) {
 		const pad =
@@ -381,10 +439,16 @@ function defaultView(c: IChartApi, bars: Bar[], interval: Interval) {
 	});
 }
 
-function centerOn(c: IChartApi | null, interval: Interval, t: number) {
+function centerOn(c: IChartApi | null, interval: View, t: number) {
 	if (!c) return;
 	const span =
-		interval === "1m" ? 7200 : intraday(interval) ? 86400 * 2 : 86400 * 365;
+		interval === "1s"
+			? 600
+			: interval === "1m"
+				? 7200
+				: intraday(interval)
+					? 86400 * 2
+					: 86400 * 365;
 	c.timeScale().setVisibleRange({
 		from: (t - span / 2) as UTCTimestamp,
 		to: (t + span / 2) as UTCTimestamp,
@@ -418,7 +482,16 @@ const CARD =
 	"absolute z-20 hidden w-80 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-xs leading-relaxed text-zinc-100 shadow-xl shadow-black/60 group-hover:block";
 const LABEL_W = "grid-cols-[176px_minmax(0,1fr)]";
 const TOP_ROWS = 10;
-const SPEEDS = [1, 5, 30]; // minutes of bars per second
+const SPEEDS = [1, 5, 30]; // minutes of bars per second (seconds of bars per second on 1s)
+
+// "T+33s" / "T−2m05s" from the announcement second.
+function fromT0(t: number) {
+	const d = Math.round(t - T0);
+	const a = Math.abs(d);
+	const m = Math.floor(a / 60);
+	const r = a % 60;
+	return `T${d < 0 ? "−" : "+"}${m ? `${m}m${String(r).padStart(2, "0")}s` : `${r}s`}`;
+}
 
 function AlertReplay() {
 	const box = useRef<HTMLDivElement>(null);
@@ -431,7 +504,8 @@ function AlertReplay() {
 	const maskEl = useRef<HTMLDivElement>(null);
 	const router = useRouter();
 	const { i: interval } = Route.useLoaderDeps();
-	const { packed } = Route.useLoaderData();
+	const { packed, center } = Route.useLoaderData();
+	const isSec = interval === "1s";
 	const bars = useMemo(() => unpack(packed), [packed]);
 	const [hover, setHover] = useState<Bar | null>(null);
 	const [ready, setReady] = useState(false);
@@ -452,9 +526,20 @@ function AlertReplay() {
 	const isIntraday = intraday(interval);
 	const pins = isIntraday ? pricePins : dayPins;
 	const eligible = useMemo(
-		() => (isIntraday ? items.filter((i) => i.precision !== "day") : items),
-		[isIntraday],
+		() =>
+			isSec
+				? items.filter((i) => i.precision === "second")
+				: isIntraday
+					? items.filter((i) => i.precision !== "day")
+					: items,
+		[isIntraday, isSec],
 	);
+	// Close of the 1s bar at T0, the base for every "% vs T0" on the 1s view.
+	const t0Close = useMemo(() => {
+		if (!isSec) return null;
+		const i = snapIndex(bars, T0);
+		return i < 0 ? null : bars[i].close;
+	}, [isSec, bars]);
 	const barOf = useMemo(
 		() => eligible.map((it) => snapIndex(bars, it.t)),
 		[eligible, bars],
@@ -635,7 +720,7 @@ function AlertReplay() {
 						if (type === 0) return fmtYear.format(ms);
 						if (type === 1) return fmtMonth.format(ms);
 						if (type === 2) return fmtMonthDay.format(ms);
-						return fmtTime.format(ms);
+						return (type === 4 ? fmtSec : fmtTime).format(ms);
 					},
 				},
 				localization: {
@@ -693,6 +778,7 @@ function AlertReplay() {
 		let cancelled = false;
 		(async () => {
 			for (const i of INTERVALS) {
+				// 1s is never preloaded: it is loaded by time window on demand.
 				if (cancelled) return;
 				await router
 					.preloadRoute({ to: "/stock/nvda", search: { i } })
@@ -731,12 +817,20 @@ function AlertReplay() {
 					: { time: t(b.time) },
 			),
 		);
-		defaultView(c, bars, interval);
+		const sec = interval === "1s";
+		c.applyOptions({
+			timeScale: { secondsVisible: sec },
+			localization: {
+				timeFormatter: (x: number) =>
+					`${(sec ? fmtDaySec : fmtFull).format(x * 1000)} ET`,
+			},
+		});
+		defaultView(c, bars, interval, center);
 		requestAnimationFrame(() => {
 			placeRef.current();
 			countRef.current();
 		});
-	}, [bars, ready, interval]);
+	}, [bars, ready, interval, center]);
 
 	// The last-value label would reveal the final price during a replay.
 	const replaying = cursor !== null;
@@ -800,7 +894,8 @@ function AlertReplay() {
 	// Advance by `speed` minutes of bars per second; overnight gaps are skipped, not waited out.
 	useEffect(() => {
 		if (!playing) return;
-		const perBar = BAR_MIN[interval] ?? 1;
+		// On 1s a bar is 1/60 minute, so `speed` reads as seconds of bars per second.
+		const perBar = interval === "1s" ? 1 : (BAR_MIN[interval as Interval] ?? 1);
 		let last = performance.now();
 		let id = 0;
 		const step = (now: number) => {
@@ -849,6 +944,17 @@ function AlertReplay() {
 	// "What if you acted here" for the scandal week. An item is acted on at the close of the first
 	// full bar after it (8:52:29 → the 8:53 bar's close), never at an earlier price.
 	const outcome = (t: number, item = false) => {
+		if (isSec) {
+			const i = snapIndex(bars, t);
+			if (i < 0 || t0Close === null) return null;
+			const p = bars[i].close;
+			return (
+				<div className="mt-1.5 border-t border-zinc-700 pt-1.5 font-mono text-zinc-300">
+					{fromT0(t)} · ${p.toFixed(2)} at {fmtSec.format(bars[i].time * 1000)}{" "}
+					ET · <Pct v={pct(p, t0Close)} /> vs T0
+				</div>
+			);
+		}
 		if (!isIntraday || t < OUTCOME_WINDOW[0] || t > OUTCOME_WINDOW[1])
 			return null;
 		const i = snapIndex(bars, t);
@@ -982,7 +1088,8 @@ function AlertReplay() {
 									aria-pressed={speed === v}
 									className={`px-2 py-1 text-xs ${speed === v ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
 								>
-									{v} min/s
+									{v}
+									{isSec ? "×" : " min/s"}
 								</button>
 							))}
 						</div>
@@ -1001,16 +1108,31 @@ function AlertReplay() {
 			<div className="mt-3 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-zinc-400">
 				{cursorBar && (
 					<span className="rounded bg-zinc-800 px-1.5 text-zinc-100">
-						Replay at {fmtFull.format(cursorBar.time * 1000)} ET · $
+						Replay at{" "}
+						{(isSec ? fmtDaySec : fmtFull).format(cursorBar.time * 1000)} ET · $
 						{cursorBar.close.toFixed(2)}
 					</span>
 				)}
 				{shown && (
 					<>
 						<span className="text-zinc-200">
-							{(isIntraday ? fmtFull : fmtDay).format(shown.time * 1000)}
-							{isIntraday && " ET"}
+							{isSec ? (
+								<>
+									{fmtDaySec.format(shown.time * 1000)} ET ·{" "}
+									{fmtSecPT.format(shown.time * 1000)} PT · {fromT0(shown.time)}
+								</>
+							) : (
+								<>
+									{(isIntraday ? fmtFull : fmtDay).format(shown.time * 1000)}
+									{isIntraday && " ET"}
+								</>
+							)}
 						</span>
+						{t0Close !== null && (
+							<span>
+								<Pct v={pct(shown.close, t0Close)} /> vs T0
+							</span>
+						)}
 						<span>O {shown.open.toFixed(2)}</span>
 						<span>H {shown.high.toFixed(2)}</span>
 						<span>L {shown.low.toFixed(2)}</span>
