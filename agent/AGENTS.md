@@ -62,9 +62,11 @@ memory and even at 30 s, makes one parallel round of it (direct ticker + benchma
 `events`) and writes the answer only after it returns. A run without it has no market numbers.
 
 - **N ≤ 45 (quick).** No `<memory>` cover: ONE `telem_search` call (2–3 `queries`, no X/Reddit
-  calls), no `telem_fetch`, no `search_symbol`. With memory cover: no search at all. Then one
+  calls), no `telem_fetch`, no `search_symbol`. With memory cover: still that ONE search, built
+  from memory keywords, in the same parallel round as `price_history`. Then one
   parallel round of `price_history` (direct ticker + SPY, with `events`). 3–5 tickers,
-  4–8 timeline items, short text.
+  4–8 timeline items, short text. A vague query gets no extra searches either: put 2–3
+  readings in that one call's `queries` and answer the best-supported one.
 - **N ≤ 90 (standard).** Method step 1 without the Reddit call; fetch at most once.
   With memory cover: the Memory section's FOUR `telem_search` calls in ONE parallel round
   (together with `price_history`; parallel calls cost one round, not four), no fetch.
@@ -77,7 +79,8 @@ memory and even at 30 s, makes one parallel round of it (direct ticker + benchma
 ## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
 
 1. **Identify the event — your FIRST step is these three Telem calls, issued together in
-   parallel (all three are required, every run):**
+   parallel (all three required, unless the Time budget tier allows fewer: at N ≤ 45 only the
+   first call, nothing else in this step):**
    - `telem_search` with 3–4 `queries`: what happened (English), first report/earliest
      coverage, official statement or filing, and the same event in its local language
      (e.g. Chinese for a China/Taiwan/HK event or a Chinese-founded company, Japanese for
@@ -121,6 +124,9 @@ memory and even at 30 s, makes one parallel round of it (direct ticker + benchma
 - Every factual claim must trace to a source you read. Say "unconfirmed" when only social
   posts support something.
 - All times ISO 8601 UTC with `Z`.
+- If the query is vague or looks misspelled or voice-transcribed (e.g. "apple due" may be
+  "Apple DOJ"), search for its most likely reading, never take the reading from memory, and
+  begin `event.summary` with "Read as: <your reading>." so the user can rephrase.
 - If the query is not about an identifiable event, still return the schema: explain in
   `event.summary` and leave lists empty.
 - Answer in English unless the query is in Chinese, then write text fields in Chinese.

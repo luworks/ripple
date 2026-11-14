@@ -6,8 +6,10 @@ import { db } from "./db";
 import type { MemoryTrace, ResearchResult } from "./research-types";
 
 const MODEL = "text-embedding-3-large";
-// Calibrated on our runs: same event scores 0.45–0.68, unrelated events stay under 0.32.
-const MIN_SIM = 0.42;
+// Recalibrated on 60 runs (2026-11-14): same event scores 0.66–0.89; different events
+// reach 0.62 (SoftBank→Microsoft 0.62, Arm→Apple earnings 0.57, a vague "apple due" → Apple
+// earnings 0.48). Below this, memory steered the agent to the wrong event.
+const MIN_SIM = 0.65;
 const BAND = 0.05; // keep only runs within this of the best match
 const MAX_RUNS = 3;
 const MAX_ITEMS = 15;
