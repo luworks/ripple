@@ -65,11 +65,21 @@ export const Route = createFileRoute("/research/")({
 	component: ResearchHome,
 });
 
+// Starter questions, one per kind of question the agent answers well. Each is a real event
+// with an earlier run, so memory makes it fast and reliable in a live demo.
 const examples = [
-	"Jensen Huang resigns as Nvidia CEO",
-	"TSMC halts shipments to a major customer",
-	"OpenAI announces IPO filing",
-	"Apple misses iPhone sales estimates",
+	{
+		kind: "Price reaction",
+		q: "How did NVDA react when Jensen Huang resigned as CEO?",
+	},
+	{ kind: "Earnings", q: "Apple stock after the Q4 fiscal 2026 earnings call" },
+	{ kind: "Deal", q: "AMD stock reaction to the OpenAI MI450 deal" },
+	{
+		kind: "Supply chain",
+		q: "Apple iPhone 18 demand warning: which supplier stocks fell?",
+	},
+	{ kind: "Leadership · 中文", q: "苹果 CEO 库克卸任对苹果股价的影响" },
+	{ kind: "Deliveries · 中文", q: "小米汽车最新交付量，股价怎么反应？" },
 ];
 
 const BUDGET_KEY = "brain0.research.budget";
@@ -226,9 +236,14 @@ function ResearchHome() {
 							{busy ? "Starting…" : "Research"}
 						</button>
 					</form>
-					<fieldset className="flex flex-wrap items-center gap-2 text-sm">
-						<legend className="sr-only">Search time</legend>
-						<span className="text-zinc-500">Search time</span>
+					<div
+						role="radiogroup"
+						aria-labelledby="budget-label"
+						className="flex flex-wrap items-center gap-2 text-sm"
+					>
+						<span id="budget-label" className="text-zinc-500">
+							Search time
+						</span>
 						{BUDGETS.map((b) => (
 							<label
 								key={b}
@@ -250,27 +265,38 @@ function ResearchHome() {
 							</label>
 						))}
 						<span className="text-xs text-zinc-600">{BUDGET_HINT[budget]}</span>
-					</fieldset>
+					</div>
 					{error && (
 						<p className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm text-rose-300">
 							{error}
 						</p>
 					)}
-					<div className="flex flex-wrap gap-2">
-						{examples.map((q) => (
-							<button
-								key={q}
-								type="button"
-								disabled={busy}
-								onClick={() => {
-									setQuery(q);
-									submit(q);
-								}}
-								className="rounded-full border border-zinc-800 px-3 py-1 text-sm text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
-							>
-								{q}
-							</button>
-						))}
+					<div className="flex flex-col gap-3">
+						<p className="text-sm text-zinc-500">
+							Ask about one event: name the company, person or announcement and
+							what you want to know. English or Chinese. Try one:
+						</p>
+						<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+							{examples.map(({ kind, q }) => (
+								<button
+									key={q}
+									type="button"
+									disabled={busy}
+									onClick={() => {
+										setQuery(q);
+										submit(q);
+									}}
+									className="flex flex-col gap-1 rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-left transition-colors hover:border-emerald-400/50 hover:bg-zinc-900/60 disabled:opacity-50"
+								>
+									<span className="text-xs uppercase tracking-wider text-emerald-400/80">
+										{kind}
+									</span>
+									<span className="text-sm leading-snug text-zinc-200">
+										{q}
+									</span>
+								</button>
+							))}
+						</div>
 					</div>
 				</section>
 
