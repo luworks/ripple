@@ -52,14 +52,15 @@ export function VenturePitch() {
 				<span className="text-xs font-medium uppercase tracking-wider text-emerald-400">
 					Why {BRAND}
 				</span>
-				<h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-					Terminal-grade answers at 1/54 the price.
+				<h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+					Everyone can be a quant fund.
 				</h2>
 				<p className="max-w-2xl leading-relaxed text-zinc-400">
-					A sourced brief in {RUN_SECONDS} seconds median, with the Chinese
-					social posts the incumbents don't carry. From ${PRO_MO} a month.
+					Quant funds spend millions to see a story spread before the price
+					moves. {BRAND} hands that edge to everyone: a sourced brief in{" "}
+					{RUN_SECONDS} seconds, Chinese social included, from ${PRO_MO} a
+					month.
 				</p>
-				<PricingCta />
 			</div>
 			<Compare />
 			<PricingCta />
