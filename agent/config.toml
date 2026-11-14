@@ -12,22 +12,18 @@ base_url = "https://api.openai.com/v1"
 env_key = "OPENAI_API_KEY"
 wire_api = "responses"
 
-[mcp_servers.telem]
-url = "https://mcp.telem.ai/mcp"
-bearer_token_env_var = "TELEM_API_KEY"
-http_headers = { "X-Telem-Auto-Routing" = "accuracy" }
-tool_timeout_sec = 90
-
-# Hackathon Telem (separate prod deployment; its keys only work here, dev keys only on mcp.telem.ai).
+# Telem on the hackathon endpoint (its keys only work here). The agent's primary search.
 [mcp_servers.telem_hack]
 url = "https://hack.telem.ai/mcp"
 bearer_token_env_var = "TELEM_HACK_API_KEY"
 http_headers = { "X-Telem-Auto-Routing" = "accuracy" }
+enabled_tools = ["telem_search", "telem_fetch"]
 tool_timeout_sec = 90
 
 [mcp_servers.tavily]
 url = "https://mcp.tavily.com/mcp/"
 bearer_token_env_var = "TAVILY_API_KEY"
+enabled_tools = ["tavily_search", "tavily_extract"]
 tool_timeout_sec = 60
 
 [mcp_servers.market]

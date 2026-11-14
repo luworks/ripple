@@ -3,16 +3,21 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
-import type { AgentEvent, ResearchResult, RunOutcome } from "./research-types";
+import type {
+	AgentEvent,
+	ResearchResult,
+	RunOutcome,
+	ToolCallTrace,
+} from "./research-types";
 
 const IMAGE = process.env.AGENT_IMAGE ?? "brain0-agent";
 const TIMEOUT_MS = Number(process.env.AGENT_TIMEOUT_MS ?? 240_000);
-const KEYS = ["OPENAI_API_KEY", "TELEM_API_KEY", "TAVILY_API_KEY"] as const;
-const PASS_THROUGH = [
+const KEYS = [
+	"OPENAI_API_KEY",
 	"TELEM_HACK_API_KEY",
-	"AGENT_MODEL",
-	"AGENT_EFFORT",
+	"TAVILY_API_KEY",
 ] as const;
+const PASS_THROUGH = ["AGENT_MODEL", "AGENT_EFFORT"] as const;
 
 type CodexItem = {
 	type?: string;
@@ -21,6 +26,7 @@ type CodexItem = {
 	arguments?: Record<string, unknown>;
 	text?: string;
 	error?: { message?: string };
+	result?: { content?: { type?: string; text?: string }[] };
 };
 type CodexEvent = {
 	type: string;
@@ -49,23 +55,91 @@ function describeArgs(args: Record<string, unknown> = {}): string {
 	return typeof v === "string" ? v : v ? JSON.stringify(v) : "";
 }
 
+const SEARCH_SERVERS = new Set(["telem", "telem_hack", "tavily"]);
+const strings = (v: unknown): string[] | undefined =>
+	Array.isArray(v)
+		? v.filter((x): x is string => typeof x === "string")
+		: typeof v === "string"
+			? [v]
+			: undefined;
+
+// Request side of a search/fetch call, straight from the tool arguments.
+function requestTrace(it: CodexItem): ToolCallTrace | undefined {
+	if (!it.server || !it.tool || !SEARCH_SERVERS.has(it.server)) return;
+	const a = it.arguments ?? {};
+	const queries = strings(a.queries) ?? strings(a.query);
+	const urls = strings(a.urls);
+	return {
+		server: it.server,
+		tool: it.tool,
+		...(queries && { queries }),
+		...(typeof a.topic === "string" && { topic: a.topic }),
+		...(urls && { urls }),
+	};
+}
+
+// Result side: which provider returned which URL (Telem tags every result "[provider] URL: ...").
+function resultTrace(it: CodexItem): ToolCallTrace | undefined {
+	const req = requestTrace(it);
+	if (!req || it.error) return;
+	const text = (it.result?.content ?? []).map((c) => c.text ?? "").join("\n");
+	if (/fetch|extract/.test(req.tool)) {
+		// Telem marks each page "Status: succeeded"; Tavily extract returns one "url" per page.
+		const pages = req.tool.includes("extract")
+			? (text.match(/"url"\s*:/g)?.length ?? 0)
+			: (text.match(/^Status: succeeded/gm)?.length ?? 0);
+		return {
+			server: req.server,
+			tool: req.tool,
+			pages,
+		};
+	}
+	const hits: [string, string][] = [];
+	const seen = new Set<string>();
+	const re =
+		req.server === "tavily"
+			? /"url"\s*:\s*"([^"]+)"|^URL: (\S+)/gm
+			: /^\[([^\]]+)\] URL: (\S+)/gm;
+	for (const m of text.matchAll(re)) {
+		const [provider, url] =
+			req.server === "tavily" ? ["tavily", m[1] ?? m[2]] : [m[1], m[2]];
+		const k = `${provider} ${url}`;
+		if (url && !seen.has(k)) {
+			seen.add(k);
+			hits.push([provider, url]);
+		}
+	}
+	return { server: req.server, tool: req.tool, hits };
+}
+
 function toEvent(e: CodexEvent): AgentEvent | undefined {
 	const at = new Date().toISOString();
 	const it = e.item;
 	if (e.type === "thread.started")
 		return { at, kind: "status", text: "Agent started" };
-	if (e.type === "item.started" && it?.type === "mcp_tool_call")
+	if (e.type === "item.started" && it?.type === "mcp_tool_call") {
+		const call = requestTrace(it);
 		return {
 			at,
 			kind: "tool",
 			text: clip(`${it.server}.${it.tool}: ${describeArgs(it.arguments)}`),
+			...(call && { call }),
 		};
+	}
 	if (e.type === "item.completed" && it?.type === "mcp_tool_call" && it.error)
 		return {
 			at,
 			kind: "error",
 			text: clip(`${it.server}.${it.tool} failed: ${it.error.message ?? ""}`),
 		};
+	if (e.type === "item.completed" && it?.type === "mcp_tool_call") {
+		const call = resultTrace(it);
+		if (!call) return undefined;
+		const n = call.hits
+			? `${new Set(call.hits.map((h) => h[1])).size} results from ${new Set(call.hits.map((h) => h[0])).size} providers`
+			: `${call.pages ?? 0} pages read`;
+		return { at, kind: "result", text: `${it.server}.${it.tool} → ${n}`, call };
+	}
 	if (e.type === "item.completed" && it?.type === "reasoning" && it.text)
 		return {
 			at,

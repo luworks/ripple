@@ -13,6 +13,7 @@ import {
 	seriesChange,
 	stripMoves,
 } from "#/components/research-numbers";
+import { TelemTrace } from "#/components/TelemTrace";
 import { getPrices, getResearchRun } from "#/server/research";
 import type {
 	AgentEvent,
@@ -568,6 +569,8 @@ function ResultView({
 					</ul>
 				</div>
 			</section>
+
+			<TelemTrace events={events} />
 
 			{events.length > 0 && (
 				<details className="text-sm">

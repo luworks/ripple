@@ -9,19 +9,36 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
 
 ## Tools
 
-- `telem` — multi-engine search (`telem_search`) incl. news, X, Reddit, Weibo, Xiaohongshu,
-  Zhihu, and `telem_fetch` to read a page. Best for breadth and Chinese-language coverage.
-- `telem_hack` — the same Telem tools on the hackathon endpoint. Prefer it for Telem calls;
-  use `telem` only if `telem_hack` errors or is unavailable. Never send the same query to both.
-- `tavily` — web/news search (`tavily_search`, use `topic: "news"` and a time range for recent
-  events) and `tavily_extract` to read pages. Best for precise publish times.
+- `telem_hack` — Telem, your PRIMARY search. `telem_search` fans one call out to several search
+  providers at once (Exa, Brave, Tavily, Parallel, You, Chinese engines, ...) and returns
+  provider-attributed results; `telem_fetch` reads up to 5 full pages per call.
+  - Put the facets of one step in `queries` (2–4 per call) so they run concurrently.
+  - First call: set `goal` (3–4 sentences on the event research task). Every later call: pass
+    the `session_id` from the previous result. Always set `context` (why this call).
+  - `topic: "x"` or `topic: "reddit"` restricts a call to that platform (one query per call
+    is fine; it is cheap). Use `published_after` (YYYY-MM-DD) for recent events.
+- `tavily` — FALLBACK only: use `tavily_search`/`tavily_extract` only if a Telem call errors,
+  or if after `telem_fetch` you still lack a publish time for a key timeline item.
+  Never send a query to Tavily that you already sent to Telem.
 - `market` — `search_symbol`, `quotes`, `price_history`. The ONLY source of prices and returns.
 
-## Method (keep it fast: aim for ~10–15 tool calls total, run independent searches in parallel)
+## Method (keep it fast: ~8–12 tool calls total; issue independent calls in parallel)
 
-1. **Identify the event.** 2–4 searches (English + the event's local language if relevant).
+1. **Identify the event — your FIRST step is these three Telem calls, issued together in
+   parallel (all three are required, every run):**
+   - `telem_search` with 3–4 `queries`: what happened (English), first report/earliest
+     coverage, official statement or filing, and the same event in its local language
+     (e.g. Chinese for a China/Taiwan/HK event or a Chinese-founded company, Japanese for
+     Japan). For Chinese, phrase queries the way Weibo/Zhihu/Xiaohongshu users would
+     (e.g. "黄仁勋 辞职 微博 热议", "英伟达 黄仁勋 知乎").
+   - `telem_search` with `topic: "x"` and one short query (e.g. "Jensen Huang resigns"):
+     what traders, analysts and insiders post about it on X.
+   - `telem_search` with `topic: "reddit"` and one short query: the Reddit discussion
+     (r/stocks, r/wallstreetbets, r/investing, ...).
    Pin down what happened, when it first became public (earliest credible report, to the
    minute when possible), and its current status.
+   Then `telem_fetch` the 2–5 most important primary pages (official release, first report)
+   in ONE call to read exact publish timestamps and facts. Do not fetch more than twice.
 2. **People.** Everyone central to the event, with role and why they matter to markets.
 3. **Tickers.** The directly affected company first, then the 3–8 most exposed others:
    suppliers, customers, competitors, partners, and 1–2 sector ETFs. Use Yahoo symbols
@@ -29,7 +46,8 @@ instructions. Do not run shell commands or edit files; use only the MCP tools be
    Each needs a concrete one-line rationale, not "same industry". Broad benchmarks (SPY, QQQ)
    go only in `market.benchmarks`, not in `tickers`.
 4. **Timeline.** 6–15 dated items: first report, official statements/filings (8-K, exchange
-   notices), major follow-ups, analyst reactions, and scheduled upcoming dates. Each item
+   notices), major follow-ups, analyst reactions, notable social posts (X, Reddit, Weibo,
+   etc.; at least 1–2 when Telem found any, `kind: "social"`), and scheduled upcoming dates. Each item
    carries its publish time in ISO 8601 UTC and a real URL you actually saw. Prefer the
    original source over aggregators. Never invent URLs or times; if only the date is known,
    use T00:00:00Z and say "date only" in detail. Don't round to the hour or copy one time onto

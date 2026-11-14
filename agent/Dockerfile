@@ -1,4 +1,4 @@
-# brain0 research agent: Codex CLI + search MCPs (Telem, Tavily) + local market-data MCP.
+# brain0 research agent: Codex CLI + search MCPs (Telem hack endpoint, Tavily fallback) + local market-data MCP.
 FROM node:22-bookworm-slim
 COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /usr/local/bin/uv
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \

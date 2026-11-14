@@ -46,8 +46,20 @@ export type ResearchResult = {
 // Progress events streamed while the agent runs.
 export type AgentEvent = {
 	at: string; // ISO time
-	kind: "status" | "tool" | "message" | "error";
+	kind: "status" | "tool" | "result" | "message" | "error";
 	text: string; // short human-readable line, e.g. "telem.telem_search: Jensen Huang resigns"
+	call?: ToolCallTrace; // set by the runner from the raw tool call, never by the model
+};
+
+// What one search/fetch tool call asked for ("tool" events) or returned ("result" events).
+export type ToolCallTrace = {
+	server: string;
+	tool: string;
+	queries?: string[];
+	topic?: string;
+	urls?: string[]; // pages requested by a fetch/extract call
+	hits?: [provider: string, url: string][]; // search results, provider-attributed
+	pages?: number; // pages a fetch/extract call returned
 };
 
 export type RunOutcome =
