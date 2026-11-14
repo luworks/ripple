@@ -13,6 +13,13 @@ const DOMAIN_KINDS = ["search_result", ...PAGE_KINDS];
 // Our own smoke tests of the research agent ("cap test a1 9983", "please fail 9298").
 const TEST_RUN = "\\m(test|fail)\\M.*\\d{4,}\\s*$";
 const SEARCH_TOOL = "^(tavily|telem|telem_hack)\\.[a-z_]*search";
+const MAX_SESSIONS = 8;
+
+// Who ran a search: a coding agent's built-in web search, or our research agent
+// calling Telem / Tavily for a question someone asked on /research.
+export type Source = "Claude Code" | "Codex" | "Telem" | "Tavily";
+const AGENT_SOURCE =
+	"case agent when 'claude' then 'Claude Code' when 'codex' then 'Codex' else agent end";
 
 export type Strata = {
 	searches: number;
@@ -23,13 +30,14 @@ export type Strata = {
 
 export type Grain = "15m" | "hour" | "day";
 // One bar per PT bucket ("YYYY-MM-DDTHH:MI"), split by who ran the search.
-export type Bucket = { t: string; web: number; tavily: number; telem: number };
-export type Series = { grain: Grain; rows: Bucket[] };
-export type Detail = {
+export type Bucket = {
 	t: string;
-	domains: { d: string; n: number }[];
-	queries: { text: string; engine: string; n: number }[];
+	claude: number;
+	codex: number;
+	telem: number;
+	tavily: number;
 };
+export type Series = { grain: Grain; rows: Bucket[] };
 
 export type Page = { url: string; title?: string; note?: string };
 export type Hit = { at: string; text: string; engine: string };
@@ -40,10 +48,16 @@ export type Cluster = {
 	who: string;
 	start: string;
 	end: string;
+	n: number; // searches in this bucket, before de-duplicating texts
 	searches: Hit[];
 	pages: Page[];
 };
-export type Today = { now: string; clusters: Cluster[] };
+export type Detail = {
+	t: string;
+	domains: { d: string; n: number }[];
+	queries: { text: string; engine: string; n: number }[];
+	sessions: Cluster[];
+};
 
 const STEP: Record<Grain, string> = {
 	"15m": "15 minutes",
@@ -60,6 +74,7 @@ const grainOf = (g: unknown): Grain =>
 	g === "15m" || g === "hour" ? g : "day";
 
 type Sql = ReturnType<typeof import("../db").db>;
+type Ts = string | Date | postgres.PendingQuery<postgres.Row[]>;
 async function getSql(): Promise<Sql> {
 	const { db } = await import("../db");
 	return db();
@@ -67,10 +82,7 @@ async function getSql(): Promise<Sql> {
 
 // Every research-agent search as (at, engine, query text): one row per query, since a
 // Telem call can carry several. Text is null when it fails the privacy filter.
-const researchSearches = (
-	sql: Sql,
-	from: string | Date | postgres.PendingQuery<postgres.Row[]>,
-) => sql`
+const researchSearches = (sql: Sql, from: Ts) => sql`
 	select (e->>'at')::timestamptz as at,
 		case when e->>'text' like 'tavily.%' then 'Tavily' else 'Telem' end as engine,
 		case when hackathon_agent_data.demo_text_unsafe(q) then null else q end as text,
@@ -125,7 +137,7 @@ export const getSeries = createServerFn({ method: "GET" })
 					(select min(ts) from hackathon_agent_data.demo_events where event_type = 'search_operation')) as ts
 			),
 			hits as (
-				select ts as at, 'web' as engine from hackathon_agent_data.demo_events
+				select ts as at, ${sql.unsafe(AGENT_SOURCE)} as engine from hackathon_agent_data.demo_events
 				where event_type = 'search_operation' and ts >= (select ts from lo)
 				union all
 				select at, engine from (${researchSearches(sql, sql`(select ts from lo)`)}) r
@@ -142,15 +154,17 @@ export const getSeries = createServerFn({ method: "GET" })
 					${step}::interval) as t
 			)
 			select to_char(b.t, 'YYYY-MM-DD"T"HH24:MI') as t,
-				count(x.engine) filter (where x.engine = 'web')::int as web,
-				count(x.engine) filter (where x.engine = 'Tavily')::int as tavily,
-				count(x.engine) filter (where x.engine = 'Telem')::int as telem
+				count(x.engine) filter (where x.engine = 'Claude Code')::int as claude,
+				count(x.engine) filter (where x.engine = 'Codex')::int as codex,
+				count(x.engine) filter (where x.engine = 'Telem')::int as telem,
+				count(x.engine) filter (where x.engine = 'Tavily')::int as tavily
 			from b left join binned x on x.t = b.t
 			group by b.t order by b.t`;
 		return { grain: data.grain, rows: rows as unknown as Bucket[] };
 	});
 
-// One bucket's top domains and most repeated queries. Without t: the latest bucket.
+// One bucket: top domains, most repeated queries, and the sessions / research runs in it.
+// Without t: the latest bucket.
 export const getDetail = createServerFn({ method: "GET" })
 	.validator((d: { grain: Grain; t?: string }) => ({
 		grain: grainOf(d?.grain),
@@ -166,7 +180,7 @@ export const getDetail = createServerFn({ method: "GET" })
 			(${local} + ${step}::interval) at time zone ${TZ} as "to",
 			to_char(${local}, 'YYYY-MM-DD"T"HH24:MI') as t`;
 		const { from, to } = range;
-		const [domains, queries] = await Promise.all([
+		const [domains, queries, sessions] = await Promise.all([
 			sql`select d, sum(n)::int as n from (
 					select u.reg_domain as d, count(*) as n
 					from hackathon_agent_data.demo_events e
@@ -188,7 +202,7 @@ export const getDetail = createServerFn({ method: "GET" })
 					group by 1
 				) x where d is not null and d <> '' group by d order by n desc, d limit 5`,
 			sql`select text, engine, count(*)::int as n from (
-					select query_text as text, 'web' as engine, ts as at
+					select query_text as text, ${sql.unsafe(AGENT_SOURCE)} as engine, ts as at
 					from hackathon_agent_data.demo_events
 					where event_type = 'search_operation' and query_text is not null
 						and ts >= ${from} and ts < ${to}
@@ -196,113 +210,114 @@ export const getDetail = createServerFn({ method: "GET" })
 					select text, engine, at from (${researchSearches(sql, from)}) r
 					where text is not null and at >= ${from} and at < ${to}
 				) q group by 1, 2 order by n desc, max(at) desc limit 6`,
+			sessionsIn(sql, from, to),
 		]);
 		return {
 			t: range.t,
 			domains: domains as unknown as Detail["domains"],
 			queries: queries as unknown as Detail["queries"],
+			sessions,
 		};
 	});
 
 const AGENT: Record<string, string> = {
 	claude: "Claude Code",
 	codex: "Codex",
-	t3: "T3",
-	opencode: "OpenCode",
 };
 
 type ResultItem = { url?: string; headline?: string; detail?: string };
+const iso = (d: Date | string) => new Date(d).toISOString();
 
-// Today's searches, grouped into one cluster per agent session or research run.
-// Not cached: the page polls it so new research-agent searches show up live.
-export const getToday = createServerFn({ method: "GET" }).handler(
-	async (): Promise<Today> => {
-		const sql = await getSql();
-		const [{ start }] =
-			await sql`select date_trunc('day', now() at time zone ${TZ}) at time zone ${TZ} as start`;
-		const [agentHits, agentPages, runs, runHits] = await Promise.all([
-			sql`select session_key, ts, agent, machine, query_text
+// The most recent agent sessions and research runs with searches in [from, to):
+// what each searched, and the pages it kept (research runs add a headline + summary).
+async function sessionsIn(sql: Sql, from: Date, to: Date): Promise<Cluster[]> {
+	const [agentSessions, runs] = await Promise.all([
+		sql`with s as (
+				select session_key, agent, machine, min(ts) as start, max(ts) as "end", count(*)::int as n
 				from hackathon_agent_data.demo_events
-				where event_type = 'search_operation' and query_text is not null and ts >= ${start}
-				order by ts`,
-			sql`select e.session_key, u.display_url, min(e.ts) as ts
-				from hackathon_agent_data.demo_events e
-				join hackathon_agent_data.demo_urls u on u.event_id = e.id
-				where e.ts >= ${start} and u.display_url is not null
-					and u.occurrence_kind = any(${PAGE_KINDS})
-				group by 1, 2 order by 3`,
-			sql`select id, query, created_at, finished_at, result,
-					hackathon_agent_data.demo_text_unsafe(query) as hidden
-				from public.research_runs where created_at >= ${start} and query !~* ${TEST_RUN}`,
-			sql`select run, at, engine, text from (${researchSearches(sql, start)}) r
-				where text is not null and at >= ${start} order by at`,
-		]);
+				where event_type = 'search_operation' and query_text is not null
+					and ts >= ${from} and ts < ${to}
+				group by 1, 2, 3 order by max(ts) desc limit ${MAX_SESSIONS}
+			)
+			select s.*,
+				(select json_agg(q order by q.at) from (
+					select query_text as text, min(ts) as at
+					from hackathon_agent_data.demo_events e
+					where e.session_key = s.session_key and e.event_type = 'search_operation'
+						and e.query_text is not null and e.ts >= ${from} and e.ts < ${to}
+					group by 1 order by 2 limit 30) q) as hits,
+				(select json_agg(p.display_url) from (
+					select u.display_url, min(e.ts)
+					from hackathon_agent_data.demo_events e
+					join hackathon_agent_data.demo_urls u on u.event_id = e.id
+					where e.session_key = s.session_key and e.ts >= ${from} and e.ts < ${to}
+						and u.display_url is not null and u.occurrence_kind = any(${PAGE_KINDS})
+					group by 1 order by 2 limit 12) p) as pages
+			from s`,
+		sql`select r.id, r.query, r.created_at, r.finished_at, r.result,
+				hackathon_agent_data.demo_text_unsafe(r.query) as hidden
+			from public.research_runs r
+			where r.query !~* ${TEST_RUN}
+				and exists (select 1 from jsonb_array_elements(r.events) e
+					where e->>'kind' = 'tool' and e->>'text' ~ ${SEARCH_TOOL}
+						and (e->>'at')::timestamptz >= ${from} and (e->>'at')::timestamptz < ${to})
+				and r.created_at >= ${from}::timestamptz - interval '1 day' and r.created_at < ${to}
+			order by r.created_at desc limit ${MAX_SESSIONS}`,
+	]);
+	const runIds = runs.map((r) => r.id as string);
+	const runHits = runIds.length
+		? await sql`select run, at, engine, text from (${researchSearches(sql, from)}) r
+				where at >= ${from} and at < ${to} and run = any(${runIds}) order by at`
+		: [];
 
-		const clusters = new Map<string, Cluster>();
-		for (const h of agentHits) {
-			const at = new Date(h.ts).toISOString();
-			let c = clusters.get(h.session_key);
-			if (!c) {
-				c = {
-					id: h.session_key,
-					kind: "agent",
-					title: h.query_text,
-					who: `${AGENT[h.agent] ?? h.agent} · ${h.machine}`,
-					start: at,
-					end: at,
-					searches: [],
-					pages: [],
-				};
-				clusters.set(h.session_key, c);
-			}
-			c.end = at;
-			if (!c.searches.some((s) => s.text === h.query_text))
-				c.searches.push({ at, text: h.query_text, engine: "web" });
-		}
-		for (const p of agentPages) {
-			const c = clusters.get(p.session_key);
-			if (c && c.pages.length < 12) c.pages.push({ url: p.display_url });
-		}
-
-		for (const r of runs) {
-			const items = (r.result?.timeline as ResultItem[] | undefined) ?? [];
-			const seen = new Set<string>();
-			const pages: Page[] = [];
-			for (const it of items) {
-				if (!it.url || seen.has(it.url) || pages.length >= 12) continue;
-				seen.add(it.url);
-				pages.push({
-					url: it.url.replace(/^[a-z]+:\/\//i, "").replace(/[?#].*$/, ""),
-					title: it.headline,
-					note: it.detail,
-				});
-			}
-			const at = new Date(r.created_at).toISOString();
-			clusters.set(`run:${r.id}`, {
-				id: `run:${r.id}`,
-				kind: "research",
-				title: r.hidden ? "Hidden query" : r.query,
-				who: "Research agent",
-				start: at,
-				end: r.finished_at ? new Date(r.finished_at).toISOString() : at,
-				searches: [],
-				pages: r.hidden ? [] : pages,
+	const out: Cluster[] = agentSessions.map((s) => {
+		const who = AGENT[s.agent] ?? s.agent;
+		return {
+			id: s.session_key,
+			kind: "agent",
+			title: s.hits?.[0]?.text ?? "Search",
+			who: `${who} · ${s.machine}`,
+			start: iso(s.start),
+			end: iso(s.end),
+			n: s.n,
+			searches: (s.hits ?? []).map((h: { text: string; at: string }) => ({
+				at: iso(h.at),
+				text: h.text,
+				engine: who,
+			})),
+			pages: (s.pages ?? []).map((url: string) => ({ url })),
+		};
+	});
+	for (const r of runs) {
+		const items = (r.result?.timeline as ResultItem[] | undefined) ?? [];
+		const seen = new Set<string>();
+		const pages: Page[] = [];
+		for (const it of items) {
+			if (!it.url || seen.has(it.url) || pages.length >= 12) continue;
+			seen.add(it.url);
+			pages.push({
+				url: it.url.replace(/^[a-z]+:\/\//i, "").replace(/[?#].*$/, ""),
+				title: it.headline,
+				note: it.detail,
 			});
 		}
-		for (const h of runHits) {
-			const c = clusters.get(`run:${h.run}`);
-			if (!c) continue;
-			const at = new Date(h.at).toISOString();
-			if (!c.searches.some((s) => s.text === h.text))
-				c.searches.push({ at, text: h.text, engine: h.engine });
-			if (at > c.end) c.end = at;
-		}
-
-		return {
-			now: new Date().toISOString(),
-			clusters: [...clusters.values()]
-				.filter((c) => c.searches.length > 0)
-				.sort((a, b) => b.start.localeCompare(a.start)),
-		};
-	},
-);
+		const hits = runHits.filter((h) => h.run === r.id);
+		const searches: Hit[] = [];
+		for (const h of hits)
+			if (h.text && !searches.some((s) => s.text === h.text))
+				searches.push({ at: iso(h.at), text: h.text, engine: h.engine });
+		const start = hits[0] ? iso(hits[0].at) : iso(r.created_at);
+		out.push({
+			id: `run:${r.id}`,
+			kind: "research",
+			title: r.hidden ? "Hidden question" : r.query,
+			who: "Research agent · asked on /research",
+			start,
+			end: r.finished_at ? iso(r.finished_at) : start,
+			n: hits.length,
+			searches,
+			pages: r.hidden ? [] : pages,
+		});
+	}
+	return out.sort((a, b) => b.end.localeCompare(a.end)).slice(0, MAX_SESSIONS);
+}

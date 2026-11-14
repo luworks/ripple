@@ -7,7 +7,7 @@ import {
 	getSeries,
 	type Series,
 } from "#/server/agent-memory/strata";
-import { ENGINE_COLOR } from "./TodayLane";
+import { Sessions, SOURCES, SourceTag } from "./Sessions";
 
 const H = 200;
 const POLL_MS = 10_000;
@@ -22,14 +22,8 @@ const SPAN_LABEL: Record<Grain, string> = {
 	hour: "last 7 days",
 	day: "since the first search",
 };
-// Bar segments bottom-up: agents' own web searches, then Tavily, then Telem.
-const SEGMENTS = [
-	["web", "Claude Code / Codex", ENGINE_COLOR.web],
-	["tavily", "Tavily", ENGINE_COLOR.Tavily],
-	["telem", "Telem", ENGINE_COLOR.Telem],
-] as const;
 
-const total = (b: Bucket) => b.web + b.tavily + b.telem;
+const total = (b: Bucket) => b.claude + b.codex + b.telem + b.tavily;
 // Buckets are PT wall-clock strings; format them as UTC so nothing shifts.
 const at = (t: string, o: Intl.DateTimeFormatOptions) =>
 	new Date(`${t}:00Z`).toLocaleString("en-US", { timeZone: "UTC", ...o });
@@ -59,14 +53,16 @@ function tick(t: string, i: number, g: Grain) {
 
 // Stacked log-scale bars: the total's height is log-scaled, then split by source so a
 // handful of Tavily/Telem calls stays visible next to a 100k-search batch night.
+// Small sources get at least 2px; the largest source absorbs the rounding.
 function segments(b: Bucket, max: number) {
 	const n = total(b);
-	if (!n) return [0, 0, 0];
+	const parts = SOURCES.map((s) => b[s.key]);
+	if (!n) return parts.map(() => 0);
 	const h = Math.round(4 + (Math.log10(n + 1) / Math.log10(max + 1)) * (H - 4));
-	const part = (k: number) => (k ? Math.max(2, Math.round((h * k) / n)) : 0);
-	const tav = part(b.tavily);
-	const tel = part(b.telem);
-	return [Math.max(b.web ? 2 : 0, h - tav - tel), tav, tel];
+	const px = parts.map((k) => (k ? Math.max(2, Math.round((h * k) / n)) : 0));
+	const big = parts.indexOf(Math.max(...parts));
+	px[big] = Math.max(2, h - px.reduce((s, p, i) => (i === big ? s : s + p), 0));
+	return px;
 }
 
 export function SearchChart({
@@ -81,6 +77,7 @@ export function SearchChart({
 	const [details, setDetails] = useState<Record<string, Detail>>({
 		[`day|${initialDetail.t}`]: initialDetail,
 	});
+	const [updated, setUpdated] = useState<string | null>(null);
 	const pending = useRef(new Set<string>());
 	const { grain, rows } = series;
 	const last = rows.length - 1;
@@ -91,8 +88,10 @@ export function SearchChart({
 	const b = rows[shown];
 	const key = `${grain}|${b.t}`;
 	const detail = details[key];
+	const current = useRef({ grain, t: b.t, key });
+	current.current = { grain, t: b.t, key };
 
-	// Fetch the hovered bucket's domains and queries once, after a short pause.
+	// Fetch the hovered bucket's domains, queries and sessions once, after a short pause.
 	useEffect(() => {
 		if (details[key] || pending.current.has(key)) return;
 		const id = setTimeout(() => {
@@ -105,14 +104,26 @@ export function SearchChart({
 		return () => clearTimeout(id);
 	}, [key, grain, b.t, details]);
 
-	// New research-agent searches land as they run: refresh the bars and the open bucket.
+	// New research-agent searches land as they run: refresh the bars and, in place, the
+	// bucket on screen.
 	useEffect(() => {
 		const id = setInterval(() => {
-			getSeries({ data: { grain } })
-				.then((s) => {
+			const c = current.current;
+			Promise.all([
+				getSeries({ data: { grain } }),
+				getDetail({ data: { grain: c.grain, t: c.t } }),
+			])
+				.then(([s, d]) => {
 					setSeries(s);
-					const lastKey = `${grain}|${s.rows[s.rows.length - 1].t}`;
-					setDetails(({ [lastKey]: _, ...m }) => m);
+					setDetails((m) => ({ ...m, [c.key]: d }));
+					setUpdated(
+						new Date().toLocaleTimeString("en-US", {
+							timeZone: "America/Los_Angeles",
+							hour: "numeric",
+							minute: "2-digit",
+							second: "2-digit",
+						}),
+					);
 				})
 				.catch(() => {});
 		}, POLL_MS);
@@ -138,29 +149,15 @@ export function SearchChart({
 	return (
 		<div className="flex flex-col gap-6">
 			<div className="flex flex-wrap items-start justify-between gap-4">
-				<div className="flex flex-col gap-1">
+				<div className="flex flex-col gap-2">
 					<span className="text-sm text-zinc-400">
 						{bucketLabel(b.t, grain)}
 					</span>
-					<span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-						<span className="font-mono text-2xl text-zinc-100">
-							{fmt.format(total(b))}
-							<span className="ml-2 font-sans text-sm text-zinc-500">
-								{total(b) === 1 ? "search" : "searches"}
-							</span>
+					<span className="font-mono text-3xl text-zinc-100">
+						{fmt.format(total(b))}
+						<span className="ml-2 font-sans text-sm text-zinc-500">
+							{total(b) === 1 ? "search" : "searches"}
 						</span>
-						{SEGMENTS.map(([k, label, color]) => (
-							<span
-								key={k}
-								className="flex items-center gap-1.5 text-xs text-zinc-400"
-							>
-								<span className={`h-2 w-2 rounded-sm ${color}`} />
-								{label}
-								<span className="font-mono text-zinc-100">
-									{fmt.format(b[k])}
-								</span>
-							</span>
-						))}
 					</span>
 				</div>
 				<div className="flex flex-col items-end gap-2">
@@ -176,10 +173,32 @@ export function SearchChart({
 							</button>
 						))}
 					</div>
-					<span className="text-xs text-zinc-500">
+					<span className="flex items-center gap-2 text-xs text-zinc-500">
 						{SPAN_LABEL[grain]} · log scale
+						<span className="flex items-center gap-1.5 font-mono text-emerald-400">
+							<span className="relative flex h-1.5 w-1.5">
+								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+								<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+							</span>
+							live{updated ? ` · ${updated} PT` : ""}
+						</span>
 					</span>
 				</div>
+			</div>
+
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+				{SOURCES.map((s) => (
+					<div key={s.key} className="flex flex-col gap-1">
+						<span className="flex items-center gap-2 text-sm text-zinc-200">
+							<span className={`h-2.5 w-2.5 rounded-sm ${s.color}`} />
+							{s.name}
+							<span className="ml-auto font-mono text-zinc-100 sm:ml-0">
+								{fmt.format(b[s.key])}
+							</span>
+						</span>
+						<span className="pl-[18px] text-xs text-zinc-500">{s.via}</span>
+					</div>
+				))}
 			</div>
 
 			<div className="flex flex-col gap-2">
@@ -200,7 +219,7 @@ export function SearchChart({
 						onMouseLeave={() => setHover(null)}
 					>
 						{rows.map((r, i) => {
-							const [web, tav, tel] = segments(r, max);
+							const px = segments(r, max);
 							return (
 								<button
 									type="button"
@@ -209,20 +228,15 @@ export function SearchChart({
 									onMouseEnter={() => setHover(i)}
 									onFocus={() => setHover(i)}
 									onClick={() => setHover(i)}
-									className={`flex h-full min-w-0 flex-1 flex-col-reverse rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
+									className={`flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-t-sm ${i === shown ? "bg-zinc-800/80" : "hover:bg-zinc-900"}`}
 								>
-									<span
-										className={`w-full ${ENGINE_COLOR.web}`}
-										style={{ height: web }}
-									/>
-									<span
-										className={`w-full ${ENGINE_COLOR.Tavily}`}
-										style={{ height: tav }}
-									/>
-									<span
-										className={`w-full rounded-t-[1px] ${ENGINE_COLOR.Telem}`}
-										style={{ height: tel }}
-									/>
+									{SOURCES.map((s, j) => (
+										<span
+											key={s.key}
+											className={`w-full shrink-0 ${s.color}`}
+											style={{ height: px[j] }}
+										/>
+									))}
 								</button>
 							);
 						})}
@@ -245,10 +259,16 @@ export function SearchChart({
 			</div>
 
 			<div
-				className={`grid grid-cols-1 gap-8 border-t border-zinc-800 pt-6 transition-opacity lg:grid-cols-2 ${detail ? "" : "opacity-50"}`}
+				className={`flex flex-col gap-8 border-t border-zinc-800 pt-6 transition-opacity ${detail ? "" : "opacity-50"}`}
 			>
-				<TopDomains detail={detail} />
-				<Queries detail={detail} />
+				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+					<TopDomains detail={detail} />
+					<Queries detail={detail} />
+				</div>
+				<div className="flex flex-col gap-3">
+					<Label>Sessions in this slot</Label>
+					{detail && <Sessions key={key} sessions={detail.sessions} />}
+				</div>
 			</div>
 		</div>
 	);
@@ -299,7 +319,7 @@ function Queries({ detail }: { detail?: Detail }) {
 	const q = detail?.queries ?? [];
 	return (
 		<div className="flex flex-col gap-3">
-			<Label>What was searched</Label>
+			<Label>What was searched, and by whom</Label>
 			{detail && q.length === 0 && (
 				<p className="text-sm text-zinc-500">No visible queries.</p>
 			)}
@@ -307,15 +327,13 @@ function Queries({ detail }: { detail?: Detail }) {
 				{q.map((x) => (
 					<li
 						key={`${x.engine}-${x.text}`}
-						className="flex items-baseline gap-2 text-sm"
+						className="grid grid-cols-[6.5rem_1fr_auto] items-baseline gap-3 text-sm"
 					>
-						<span
-							className={`inline-block h-1.5 w-1.5 shrink-0 translate-y-[-2px] rounded-full ${ENGINE_COLOR[x.engine] ?? ENGINE_COLOR.web}`}
-						/>
-						<span className="line-clamp-1 flex-1 text-zinc-200">{x.text}</span>
-						{x.n > 1 && (
-							<span className="font-mono text-xs text-zinc-500">×{x.n}</span>
-						)}
+						<SourceTag name={x.engine} />
+						<span className="line-clamp-1 text-zinc-200">{x.text}</span>
+						<span className="font-mono text-xs text-zinc-500">
+							{x.n > 1 ? `×${x.n}` : ""}
+						</span>
 					</li>
 				))}
 			</ul>

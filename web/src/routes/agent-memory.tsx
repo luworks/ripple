@@ -1,55 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { SearchChart } from "#/components/agent-memory/SearchChart";
-import { TodayLane } from "#/components/agent-memory/TodayLane";
-import {
-	getDetail,
-	getSeries,
-	getStrata,
-	getToday,
-} from "#/server/agent-memory/strata";
+import { getDetail, getSeries, getStrata } from "#/server/agent-memory/strata";
 
 export const Route = createFileRoute("/agent-memory")({
 	loader: async () => {
-		const [strata, series, detail, today] = await Promise.all([
+		const [strata, series, detail] = await Promise.all([
 			getStrata(),
 			getSeries({ data: { grain: "day" } }),
 			getDetail({ data: { grain: "day" } }),
-			getToday(),
 		]);
-		return { strata, series, detail, today };
+		return { strata, series, detail };
 	},
 	head: () => ({ meta: [{ title: "Agent Memory · brain0" }] }),
 	component: AgentMemory,
 });
 
 const fmt = new Intl.NumberFormat("en-US");
-const POLL_MS = 10_000;
 
 function AgentMemory() {
-	const { strata, series, detail, today: initial } = Route.useLoaderData();
-	const [today, setToday] = useState(initial);
-
-	// New research-agent searches land in Postgres as they run; poll to show them live.
-	useEffect(() => {
-		const t = setInterval(() => {
-			getToday()
-				.then(setToday)
-				.catch(() => {});
-		}, POLL_MS);
-		return () => clearInterval(t);
-	}, []);
-
+	const { strata, series, detail } = Route.useLoaderData();
 	const first = new Date(`${strata.first}T12:00:00Z`).toLocaleDateString(
 		"en-US",
 		{ timeZone: "UTC", month: "long", day: "numeric" },
 	);
-	const updated = new Date(today.now).toLocaleTimeString("en-US", {
-		timeZone: "America/Los_Angeles",
-		hour: "numeric",
-		minute: "2-digit",
-		second: "2-digit",
-	});
 
 	return (
 		<main className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
@@ -80,36 +53,18 @@ function AgentMemory() {
 					<div className="flex flex-col gap-3">
 						<Kicker>{`Since ${first}`}</Kicker>
 						<h2 className="text-3xl font-semibold tracking-tight">
-							Every search, over time
+							Every search, and who ran it
 						</h2>
 						<p className="max-w-2xl text-zinc-400">
-							Hover any bar to see where those searches went and what they
-							asked. Switch to hours or 15 minutes to watch today's Tavily and
-							Telem calls arrive.
+							Claude Code and Codex search on their own while they code. Our
+							research agent searches Telem first, Tavily as fallback, when
+							someone asks on /research. Hover any bar to see where those
+							searches went, what they asked, and each session's kept pages.
 						</p>
 					</div>
-					<div className="rounded-2xl border border-zinc-800 p-6">
+					<div className="rounded-2xl border border-zinc-800 p-4 sm:p-6">
 						<SearchChart initial={series} initialDetail={detail} />
 					</div>
-				</section>
-
-				<section className="flex flex-col gap-6">
-					<div className="flex flex-wrap items-end justify-between gap-3">
-						<div className="flex flex-col gap-3">
-							<Kicker>Today</Kicker>
-							<h2 className="text-3xl font-semibold tracking-tight">
-								What they searched today
-							</h2>
-						</div>
-						<span className="flex items-center gap-2 font-mono text-xs text-emerald-400">
-							<span className="relative flex h-2 w-2">
-								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-								<span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-							</span>
-							live · {updated} PT
-						</span>
-					</div>
-					<TodayLane today={today} />
 				</section>
 			</div>
 		</main>
